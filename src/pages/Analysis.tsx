@@ -4,6 +4,8 @@ import { useLocation, useNavigate } from "react-router-dom";
 import Layout from "@/components/Layout";
 import ResumeAnalysis from "@/components/ResumeAnalysis";
 import DownloadableReport from "@/components/DownloadableReport";
+import ResumePreview from "@/components/ResumePreview";
+import SectionProgress from "@/components/SectionProgress";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { ResumeAnalysisResult } from "@/utils/geminiAPI";
@@ -59,6 +61,21 @@ const Analysis = () => {
             jobDescription={state.jobDescription}
             analysisResults={state.analysisResults}
           />
+        </div>
+        
+        <div className="grid gap-6 lg:grid-cols-12 mb-8">
+          {/* Resume Preview - Left column */}
+          <div className="lg:col-span-6">
+            <ResumePreview 
+              resumeText={state.analysisResults.resumeText} 
+              userName={state.analysisResults.userName} 
+            />
+          </div>
+          
+          {/* Section Progress - Right column */}
+          <div className="lg:col-span-6">
+            <SectionProgress analysisResults={state.analysisResults} />
+          </div>
         </div>
         
         <ResumeAnalysis 

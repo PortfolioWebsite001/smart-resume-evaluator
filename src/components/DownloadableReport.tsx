@@ -49,6 +49,12 @@ const DownloadableReport = ({
             .summary { background-color: #f3f4f6; padding: 16px; border-radius: 8px; margin-top: 24px; }
             .header { display: flex; justify-content: space-between; margin-bottom: 20px; }
             .date { color: #6b7280; }
+            .progress-bar { height: 10px; background-color: #e5e7eb; border-radius: 5px; margin: 5px 0; }
+            .progress-indicator { height: 10px; border-radius: 5px; }
+            .excellent { background-color: #10b981; }
+            .good { background-color: #3b82f6; }
+            .fair { background-color: #f59e0b; }
+            .poor { background-color: #ef4444; }
           </style>
         </head>
         <body>
@@ -83,17 +89,27 @@ const DownloadableReport = ({
                 <th>Section</th>
                 <th>Status</th>
                 <th>Quality</th>
+                <th>Score</th>
                 <th>Feedback</th>
               </tr>
               ${Object.entries(analysisResults.sections)
-                .map(([section, { present, quality, feedback }]) => `
-                  <tr>
-                    <td>${section.charAt(0).toUpperCase() + section.slice(1)}</td>
-                    <td>${present ? "Present" : "Missing"}</td>
-                    <td>${quality.charAt(0).toUpperCase() + quality.slice(1)}</td>
-                    <td>${feedback}</td>
-                  </tr>
-                `).join('')}
+                .map(([section, { present, quality, feedback, score }]) => {
+                  const progressClass = score >= 80 ? "excellent" : score >= 60 ? "good" : score >= 40 ? "fair" : "poor";
+                  return `
+                    <tr>
+                      <td>${section.charAt(0).toUpperCase() + section.slice(1)}</td>
+                      <td>${present ? "Present" : "Missing"}</td>
+                      <td>${quality.charAt(0).toUpperCase() + quality.slice(1)}</td>
+                      <td>
+                        <div>${score}/100</div>
+                        <div class="progress-bar">
+                          <div class="progress-indicator ${progressClass}" style="width: ${score}%;"></div>
+                        </div>
+                      </td>
+                      <td>${feedback}</td>
+                    </tr>
+                  `;
+                }).join('')}
             </table>
           </div>
           

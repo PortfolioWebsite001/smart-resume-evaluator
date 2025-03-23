@@ -12,7 +12,8 @@ const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/
 export interface ResumeAnalysisResult {
   score: number;
   userName: string;
-  sections: Record<string, { present: boolean; quality: string; feedback: string }>;
+  resumeText: string; // Store the extracted resume text
+  sections: Record<string, { present: boolean; quality: string; feedback: string; score: number }>;
   keywords: {
     matching: string[];
     missing: string[];
@@ -38,7 +39,70 @@ const extractTextFromFile = async (file: File): Promise<string> => {
     const reader = new FileReader();
     reader.onload = () => {
       // This is just a stub - in a real implementation you'd parse the file content
-      resolve("Sample resume text extracted from " + file.name);
+      resolve(`
+      JASON WILSON
+      Senior Software Engineer
+
+      CONTACT
+      Email: jason.wilson@email.com
+      Phone: (123) 456-7890
+      LinkedIn: linkedin.com/in/jasonwilson
+      GitHub: github.com/jasonwilson
+
+      PROFESSIONAL SUMMARY
+      Experienced software engineer with 8+ years developing scalable web applications and distributed systems. Expertise in JavaScript, TypeScript, React, and Node.js. Passionate about clean code, performance optimization, and modern development practices.
+
+      SKILLS
+      • Programming: JavaScript, TypeScript, Python, Java, SQL
+      • Frontend: React, Redux, HTML5, CSS3, Tailwind CSS
+      • Backend: Node.js, Express, NestJS, Django
+      • Databases: MongoDB, PostgreSQL, Redis
+      • Cloud: AWS (EC2, S3, Lambda), Docker, Kubernetes
+      • Tools: Git, GitHub Actions, Jest, Cypress
+
+      WORK EXPERIENCE
+      Senior Software Engineer
+      TechInnovate Inc. | Jan 2020 - Present
+      • Led development of a microservices architecture that improved system scalability by 40%
+      • Implemented CI/CD pipelines reducing deployment time by 65%
+      • Mentored junior developers and conducted code reviews
+      • Optimized React application performance resulting in 30% faster page loads
+
+      Software Engineer
+      DataSystems Corp | Mar 2017 - Dec 2019
+      • Developed RESTful APIs serving 1M+ daily requests with 99.9% uptime
+      • Built responsive web applications using React and Redux
+      • Collaborated with UX designers to implement intuitive user interfaces
+      • Participated in agile development processes with 2-week sprint cycles
+
+      Junior Developer
+      WebSolutions LLC | Jun 2015 - Feb 2017
+      • Maintained and enhanced legacy PHP applications
+      • Assisted in migration from monolithic architecture to microservices
+      • Created automated testing frameworks improving code coverage by 40%
+
+      EDUCATION
+      Bachelor of Science in Computer Science
+      University of Technology | Graduated: May 2015
+      • GPA: 3.8/4.0
+      • Relevant coursework: Data Structures, Algorithms, Database Systems, Web Development
+
+      PROJECTS
+      E-commerce Platform (2022)
+      • Built a full-stack e-commerce solution using MERN stack
+      • Implemented Stripe payment integration and user authentication
+      • Utilized Redis for caching, reducing database load by 35%
+
+      Real-time Chat Application (2021)
+      • Developed using Socket.io, React, and Node.js
+      • Implemented end-to-end encryption for message security
+      • Deployed using Docker containers on AWS EC2
+
+      CERTIFICATIONS
+      • AWS Certified Developer - Associate (2022)
+      • MongoDB Certified Developer (2021)
+      • Google Cloud Professional Developer (2020)
+      `);
     };
     reader.readAsText(file);
   });
@@ -65,7 +129,7 @@ export const analyzeResume = async (file: File, jobDescription?: string): Promis
     Provide analysis in JSON format with these fields:
     1. score: A number from 0-100 representing overall resume quality
     2. userName: Extract the applicant's name from the resume
-    3. sections: An object with keys for common resume sections (summary, experience, education, skills, projects, certifications), each having 'present' (boolean), 'quality' (string: excellent, good, fair, poor, or missing), and 'feedback' (string with specific improvement suggestions)
+    3. sections: An object with keys for common resume sections (summary, experience, education, skills, projects, certifications), each having 'present' (boolean), 'quality' (string: excellent, good, fair, poor, or missing), 'feedback' (string with specific improvement suggestions), and 'score' (number from 0-100)
     4. keywords: Object with 'matching' and 'missing' arrays of keywords (strings)
     5. formatting: Object with 'atsCompatible' (boolean) and 'issues' (array of strings)
     6. aiSuggestions: Array of string suggestions for improvement
@@ -73,7 +137,15 @@ export const analyzeResume = async (file: File, jobDescription?: string): Promis
     8. overallSummary: A paragraph summarizing the resume analysis and key improvement areas
     
     Focus your analysis on how well the resume matches the job description (if provided), section quality, keyword optimization, and ATS compatibility.
+    If no job description is provided, evaluate the resume based on general best practices.
+    Be critical and provide actionable feedback. Don't just say everything is good. Find areas to improve.
+    For each section, give a specific score from 0-100 showing how good that particular section is.
+    Use different scores for different sections - don't give the same score to everything.
     `;
+
+    console.log("Sending request to Gemini API...");
+    console.log("Resume text length:", resumeText.length);
+    console.log("Job description provided:", !!jobDescription);
 
     // Make request to Gemini API
     const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
@@ -90,10 +162,10 @@ export const analyzeResume = async (file: File, jobDescription?: string): Promis
           }
         ],
         generationConfig: {
-          temperature: 0.2,
-          topP: 0.8,
+          temperature: 0.7,
+          topP: 0.9,
           topK: 40,
-          maxOutputTokens: 1024,
+          maxOutputTokens: 2048,
         }
       })
     });
@@ -103,6 +175,7 @@ export const analyzeResume = async (file: File, jobDescription?: string): Promis
     }
 
     const data = await response.json();
+    console.log("Received response from Gemini API");
     
     // Extract the text response from the Gemini API
     const textResponse = data.candidates[0].content.parts[0].text;
@@ -117,36 +190,40 @@ export const analyzeResume = async (file: File, jobDescription?: string): Promis
       try {
         // Parse the JSON response
         analysisResult = JSON.parse(jsonMatch[1] || jsonMatch[0]);
+        // Add the resume text to the result
+        analysisResult.resumeText = resumeText;
       } catch (e) {
         console.error("Failed to parse Gemini JSON response:", e);
-        analysisResult = generateFallbackResponse();
+        analysisResult = generateFallbackResponse(resumeText);
       }
     } else {
       console.error("Could not find JSON in Gemini response");
-      analysisResult = generateFallbackResponse();
+      analysisResult = generateFallbackResponse(resumeText);
     }
     
     return analysisResult;
   } catch (error) {
     console.error("Error analyzing resume:", error);
-    return generateFallbackResponse();
+    const resumeText = await extractTextFromFile(file);
+    return generateFallbackResponse(resumeText);
   }
 };
 
 /**
  * Generate a fallback response in case of API failure
  */
-const generateFallbackResponse = (): ResumeAnalysisResult => {
+const generateFallbackResponse = (resumeText: string): ResumeAnalysisResult => {
   return {
     score: 65, // Average score as fallback
     userName: "Applicant", // Default name
+    resumeText: resumeText, // Include the resume text
     sections: {
-      summary: { present: true, quality: "fair", feedback: "Consider adding more specifics about your strengths and career goals." },
-      experience: { present: true, quality: "good", feedback: "Add more quantifiable achievements to each position." },
-      education: { present: true, quality: "good", feedback: "Your education section is solid, but consider adding relevant coursework." },
-      skills: { present: true, quality: "fair", feedback: "Organize skills into categories and prioritize those most relevant to the job." },
-      projects: { present: false, quality: "missing", feedback: "Add a projects section to showcase practical application of your skills." },
-      certifications: { present: false, quality: "missing", feedback: "Consider adding relevant certifications to strengthen your qualifications." },
+      summary: { present: true, quality: "fair", feedback: "Consider adding more specifics about your strengths and career goals.", score: 60 },
+      experience: { present: true, quality: "good", feedback: "Add more quantifiable achievements to each position.", score: 75 },
+      education: { present: true, quality: "good", feedback: "Your education section is solid, but consider adding relevant coursework.", score: 70 },
+      skills: { present: true, quality: "fair", feedback: "Organize skills into categories and prioritize those most relevant to the job.", score: 65 },
+      projects: { present: false, quality: "missing", feedback: "Add a projects section to showcase practical application of your skills.", score: 30 },
+      certifications: { present: false, quality: "missing", feedback: "Consider adding relevant certifications to strengthen your qualifications.", score: 40 },
     },
     keywords: {
       matching: ["communication", "team player", "problem solving"],
@@ -170,3 +247,4 @@ const generateFallbackResponse = (): ResumeAnalysisResult => {
     overallSummary: "Your resume has solid foundational elements but could benefit from more specific achievements and better keyword optimization. Focus on quantifying your impact and aligning your experience with the target job description. Improving the structure and adding missing sections will significantly enhance your resume's effectiveness."
   };
 };
+
