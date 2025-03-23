@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-import { Check, X, AlertCircle, ChevronDown, ChevronUp, Search, FileText } from "lucide-react";
+import { Check, X, AlertCircle, ChevronDown, ChevronUp, Search, FileText, FileCheck, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import AnalysisChart from "./AnalysisChart";
 import AIFeedback from "./AIFeedback";
@@ -71,6 +71,10 @@ const ResumeAnalysis = ({ fileName, fileSize, uploadTime, jobDescription, analys
               <span className="text-muted-foreground">Size:</span>
               <span className="font-medium">{formatFileSize(fileSize)}</span>
             </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Applicant:</span>
+              <span className="font-medium">{analysisResults.userName}</span>
+            </div>
             {jobDescription && (
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Job Analysis:</span>
@@ -97,10 +101,11 @@ const ResumeAnalysis = ({ fileName, fileSize, uploadTime, jobDescription, analys
         <div className="analysis-card micro-animate-in" style={{ animationDelay: "200ms" }}>
           <h3 className="text-lg font-medium mb-4">AI Feedback</h3>
           <AIFeedback suggestions={analysisResults.aiSuggestions} />
-          
-          <div className="mt-6">
-            <Button className="w-full">Download Full Report</Button>
-          </div>
+        </div>
+        
+        <div className="analysis-card micro-animate-in" style={{ animationDelay: "300ms" }}>
+          <h3 className="text-lg font-medium mb-4">Summary</h3>
+          <p className="text-sm text-muted-foreground">{analysisResults.overallSummary}</p>
         </div>
       </div>
 
@@ -122,22 +127,25 @@ const ResumeAnalysis = ({ fileName, fileSize, uploadTime, jobDescription, analys
           
           {sectionExpanded === "overview" && (
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              {Object.entries(analysisResults.sections).map(([section, { present, quality }]) => (
+              {Object.entries(analysisResults.sections).map(([section, { present, quality, feedback }]) => (
                 <div 
                   key={section}
-                  className="p-3 border rounded-lg flex items-center justify-between"
+                  className="p-3 border rounded-lg"
                 >
-                  <div className="flex items-center">
-                    {present ? (
-                      <Check className="h-5 w-5 text-green-500 mr-2" />
-                    ) : (
-                      <X className="h-5 w-5 text-red-500 mr-2" />
-                    )}
-                    <span className="capitalize">{section}</span>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center">
+                      {present ? (
+                        <Check className="h-5 w-5 text-green-500 mr-2" />
+                      ) : (
+                        <X className="h-5 w-5 text-red-500 mr-2" />
+                      )}
+                      <span className="capitalize">{section}</span>
+                    </div>
+                    <span className={`text-sm font-medium ${getQualityColor(quality)}`}>
+                      {quality.charAt(0).toUpperCase() + quality.slice(1)}
+                    </span>
                   </div>
-                  <span className={`text-sm font-medium ${getQualityColor(quality)}`}>
-                    {quality.charAt(0).toUpperCase() + quality.slice(1)}
-                  </span>
+                  <p className="text-xs text-muted-foreground pl-7">{feedback}</p>
                 </div>
               ))}
             </div>
@@ -244,6 +252,34 @@ const ResumeAnalysis = ({ fileName, fileSize, uploadTime, jobDescription, analys
                   </ul>
                 </div>
               )}
+            </div>
+          )}
+        </div>
+        
+        {/* Action Items */}
+        <div className="analysis-card micro-animate-in" style={{ animationDelay: "600ms" }}>
+          <button 
+            className="flex items-center justify-between w-full text-left"
+            onClick={() => toggleSection("actions")}
+          >
+            <h3 className="text-lg font-medium">Recommended Action Items</h3>
+            {sectionExpanded === "actions" ? (
+              <ChevronUp className="h-5 w-5 text-muted-foreground" />
+            ) : (
+              <ChevronDown className="h-5 w-5 text-muted-foreground" />
+            )}
+          </button>
+          
+          {sectionExpanded === "actions" && (
+            <div className="mt-4">
+              <div className="space-y-3">
+                {analysisResults.actionItems.map((item, index) => (
+                  <div key={index} className="flex items-start p-2 border border-primary/10 rounded-md bg-primary/5">
+                    <CheckCircle2 className="h-5 w-5 text-primary mr-3 mt-0.5 flex-shrink-0" />
+                    <span>{item}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>

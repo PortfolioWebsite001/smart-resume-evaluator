@@ -11,7 +11,8 @@ const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/
  */
 export interface ResumeAnalysisResult {
   score: number;
-  sections: Record<string, { present: boolean; quality: string }>;
+  userName: string;
+  sections: Record<string, { present: boolean; quality: string; feedback: string }>;
   keywords: {
     matching: string[];
     missing: string[];
@@ -21,6 +22,8 @@ export interface ResumeAnalysisResult {
     issues: string[];
   };
   aiSuggestions: string[];
+  actionItems: string[];
+  overallSummary: string;
 }
 
 /**
@@ -61,10 +64,13 @@ export const analyzeResume = async (file: File, jobDescription?: string): Promis
     
     Provide analysis in JSON format with these fields:
     1. score: A number from 0-100 representing overall resume quality
-    2. sections: An object with keys for common resume sections (summary, experience, education, skills, projects, certifications), each having 'present' (boolean) and 'quality' (string: excellent, good, fair, poor, or missing)
-    3. keywords: Object with 'matching' and 'missing' arrays of keywords (strings)
-    4. formatting: Object with 'atsCompatible' (boolean) and 'issues' (array of strings)
-    5. aiSuggestions: Array of string suggestions for improvement
+    2. userName: Extract the applicant's name from the resume
+    3. sections: An object with keys for common resume sections (summary, experience, education, skills, projects, certifications), each having 'present' (boolean), 'quality' (string: excellent, good, fair, poor, or missing), and 'feedback' (string with specific improvement suggestions)
+    4. keywords: Object with 'matching' and 'missing' arrays of keywords (strings)
+    5. formatting: Object with 'atsCompatible' (boolean) and 'issues' (array of strings)
+    6. aiSuggestions: Array of string suggestions for improvement
+    7. actionItems: Array of specific actions the candidate should take to improve the resume
+    8. overallSummary: A paragraph summarizing the resume analysis and key improvement areas
     
     Focus your analysis on how well the resume matches the job description (if provided), section quality, keyword optimization, and ATS compatibility.
     `;
@@ -133,13 +139,14 @@ export const analyzeResume = async (file: File, jobDescription?: string): Promis
 const generateFallbackResponse = (): ResumeAnalysisResult => {
   return {
     score: 65, // Average score as fallback
+    userName: "Applicant", // Default name
     sections: {
-      summary: { present: true, quality: "fair" },
-      experience: { present: true, quality: "good" },
-      education: { present: true, quality: "good" },
-      skills: { present: true, quality: "fair" },
-      projects: { present: false, quality: "missing" },
-      certifications: { present: false, quality: "missing" },
+      summary: { present: true, quality: "fair", feedback: "Consider adding more specifics about your strengths and career goals." },
+      experience: { present: true, quality: "good", feedback: "Add more quantifiable achievements to each position." },
+      education: { present: true, quality: "good", feedback: "Your education section is solid, but consider adding relevant coursework." },
+      skills: { present: true, quality: "fair", feedback: "Organize skills into categories and prioritize those most relevant to the job." },
+      projects: { present: false, quality: "missing", feedback: "Add a projects section to showcase practical application of your skills." },
+      certifications: { present: false, quality: "missing", feedback: "Consider adding relevant certifications to strengthen your qualifications." },
     },
     keywords: {
       matching: ["communication", "team player", "problem solving"],
@@ -147,12 +154,19 @@ const generateFallbackResponse = (): ResumeAnalysisResult => {
     },
     formatting: {
       atsCompatible: true,
-      issues: ["Consider improving readability with better spacing"],
+      issues: ["Consider improving readability with better spacing", "Ensure consistent bullet point formatting"],
     },
     aiSuggestions: [
       "Add more specific achievements with quantifiable results",
       "Include a projects section to showcase practical experience",
       "Consider adding relevant certifications"
     ],
+    actionItems: [
+      "Reorganize skills section into technical and soft skill categories",
+      "Add 2-3 quantifiable achievements to each job position",
+      "Create a concise summary that highlights your value proposition",
+      "Add a projects section with 2-3 relevant projects"
+    ],
+    overallSummary: "Your resume has solid foundational elements but could benefit from more specific achievements and better keyword optimization. Focus on quantifying your impact and aligning your experience with the target job description. Improving the structure and adding missing sections will significantly enhance your resume's effectiveness."
   };
 };

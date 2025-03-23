@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import Layout from "@/components/Layout";
 import ResumeAnalysis from "@/components/ResumeAnalysis";
+import DownloadableReport from "@/components/DownloadableReport";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { ResumeAnalysisResult } from "@/utils/geminiAPI";
@@ -42,10 +43,22 @@ const Analysis = () => {
             Back to Upload
           </Button>
           
-          <h1 className="text-3xl font-bold animate-fade-in mb-2">Resume Analysis Results</h1>
+          <h1 className="text-3xl font-bold animate-fade-in mb-2">
+            Hello, {state.analysisResults.userName}!
+          </h1>
           <p className="text-muted-foreground animate-fade-in" style={{ animationDelay: "100ms" }}>
-            Detailed breakdown and suggestions for improvement
+            Here's your personalized resume analysis
           </p>
+        </div>
+        
+        <div className="mb-8">
+          <DownloadableReport 
+            fileName={state.fileName}
+            fileSize={state.fileSize}
+            uploadTime={state.uploadTime}
+            jobDescription={state.jobDescription}
+            analysisResults={state.analysisResults}
+          />
         </div>
         
         <ResumeAnalysis 
