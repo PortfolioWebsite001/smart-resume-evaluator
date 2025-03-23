@@ -1,7 +1,11 @@
-
 /**
  * Utility functions for interacting with Google's Gemini API
  */
+import * as PDFJS from 'pdfjs-dist';
+import { getDocument } from 'pdfjs-dist';
+
+// Set the worker source for PDF.js
+PDFJS.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS.version}/pdf.worker.min.js`;
 
 const GEMINI_API_KEY = "AIzaSyDRaN-j-cBwPTBNBzFStrA7GDNVPY33jUc";
 const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent";
@@ -28,84 +32,62 @@ export interface ResumeAnalysisResult {
 }
 
 /**
- * Extract text from a PDF file
- * In a real implementation, this would use a PDF parsing library
- * For now we're mocking this functionality
+ * Extract text from a PDF file using PDF.js
+ */
+const extractTextFromPDF = async (file: File): Promise<string> => {
+  try {
+    // Convert file to ArrayBuffer
+    const arrayBuffer = await file.arrayBuffer();
+    // Load PDF document
+    const loadingTask = getDocument({ data: arrayBuffer });
+    const pdf = await loadingTask.promise;
+    
+    let fullText = '';
+    
+    // Extract text from each page
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const textContent = await page.getTextContent();
+      const pageText = textContent.items
+        .map((item: any) => item.str)
+        .join(' ');
+      
+      fullText += pageText + '\n\n';
+    }
+    
+    console.log("Successfully extracted text from PDF:", fullText.substring(0, 100) + "...");
+    return fullText;
+  } catch (error) {
+    console.error("Error extracting text from PDF:", error);
+    return "Error extracting text from document. Please try again with a different file.";
+  }
+}
+
+/**
+ * Extract text from a DOCX file
+ * This is a placeholder - DOCX extraction requires additional libraries
+ */
+const extractTextFromDOCX = async (file: File): Promise<string> => {
+  // In a full implementation, we would use mammoth.js or similar
+  // For now, we'll return a message about DOCX support
+  return "DOCX text extraction is in development. For best results, please upload a PDF file.";
+}
+
+/**
+ * Extract text from a file based on its type
  */
 const extractTextFromFile = async (file: File): Promise<string> => {
-  // In a real implementation, you would use a library like pdf.js to extract text
-  // For this example, we'll just return a placeholder text
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      // This is just a stub - in a real implementation you'd parse the file content
-      resolve(`
-      JASON WILSON
-      Senior Software Engineer
-
-      CONTACT
-      Email: jason.wilson@email.com
-      Phone: (123) 456-7890
-      LinkedIn: linkedin.com/in/jasonwilson
-      GitHub: github.com/jasonwilson
-
-      PROFESSIONAL SUMMARY
-      Experienced software engineer with 8+ years developing scalable web applications and distributed systems. Expertise in JavaScript, TypeScript, React, and Node.js. Passionate about clean code, performance optimization, and modern development practices.
-
-      SKILLS
-      • Programming: JavaScript, TypeScript, Python, Java, SQL
-      • Frontend: React, Redux, HTML5, CSS3, Tailwind CSS
-      • Backend: Node.js, Express, NestJS, Django
-      • Databases: MongoDB, PostgreSQL, Redis
-      • Cloud: AWS (EC2, S3, Lambda), Docker, Kubernetes
-      • Tools: Git, GitHub Actions, Jest, Cypress
-
-      WORK EXPERIENCE
-      Senior Software Engineer
-      TechInnovate Inc. | Jan 2020 - Present
-      • Led development of a microservices architecture that improved system scalability by 40%
-      • Implemented CI/CD pipelines reducing deployment time by 65%
-      • Mentored junior developers and conducted code reviews
-      • Optimized React application performance resulting in 30% faster page loads
-
-      Software Engineer
-      DataSystems Corp | Mar 2017 - Dec 2019
-      • Developed RESTful APIs serving 1M+ daily requests with 99.9% uptime
-      • Built responsive web applications using React and Redux
-      • Collaborated with UX designers to implement intuitive user interfaces
-      • Participated in agile development processes with 2-week sprint cycles
-
-      Junior Developer
-      WebSolutions LLC | Jun 2015 - Feb 2017
-      • Maintained and enhanced legacy PHP applications
-      • Assisted in migration from monolithic architecture to microservices
-      • Created automated testing frameworks improving code coverage by 40%
-
-      EDUCATION
-      Bachelor of Science in Computer Science
-      University of Technology | Graduated: May 2015
-      • GPA: 3.8/4.0
-      • Relevant coursework: Data Structures, Algorithms, Database Systems, Web Development
-
-      PROJECTS
-      E-commerce Platform (2022)
-      • Built a full-stack e-commerce solution using MERN stack
-      • Implemented Stripe payment integration and user authentication
-      • Utilized Redis for caching, reducing database load by 35%
-
-      Real-time Chat Application (2021)
-      • Developed using Socket.io, React, and Node.js
-      • Implemented end-to-end encryption for message security
-      • Deployed using Docker containers on AWS EC2
-
-      CERTIFICATIONS
-      • AWS Certified Developer - Associate (2022)
-      • MongoDB Certified Developer (2021)
-      • Google Cloud Professional Developer (2020)
-      `);
-    };
-    reader.readAsText(file);
-  });
+  const fileExtension = file.name.split('.').pop()?.toLowerCase();
+  
+  console.log("Extracting text from file:", file.name, "with extension:", fileExtension);
+  
+  if (fileExtension === 'pdf') {
+    return extractTextFromPDF(file);
+  } else if (fileExtension === 'docx') {
+    return extractTextFromDOCX(file);
+  } else {
+    return "Unsupported file format. Please upload a PDF or DOCX file.";
+  }
 };
 
 /**
@@ -247,4 +229,3 @@ const generateFallbackResponse = (resumeText: string): ResumeAnalysisResult => {
     overallSummary: "Your resume has solid foundational elements but could benefit from more specific achievements and better keyword optimization. Focus on quantifying your impact and aligning your experience with the target job description. Improving the structure and adding missing sections will significantly enhance your resume's effectiveness."
   };
 };
-
