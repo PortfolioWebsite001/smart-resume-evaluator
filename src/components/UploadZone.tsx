@@ -1,9 +1,9 @@
-
 import { useState, useRef, DragEvent, ChangeEvent } from "react";
 import { FileUp, File, X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import { analyzeResume } from "@/utils/geminiAPI";
 
 interface UploadZoneProps {
   onFileUpload: (file: File) => void;
@@ -68,29 +68,24 @@ const UploadZone = ({ onFileUpload }: UploadZoneProps) => {
 
     setIsLoading(true);
     
-    // In a real application, you would upload the file to the server here
-    // For this demo, we'll simulate the upload and analysis
     try {
-      // Simulate file processing delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      const analysisResults = await analyzeResume(selectedFile, jobDescription);
       
       onFileUpload(selectedFile);
       
-      // Simulate successful analysis
-      setIsLoading(false);
-      
-      // Navigate to analysis page with resume data
       navigate("/analysis", { 
         state: { 
           fileName: selectedFile.name,
           fileSize: selectedFile.size,
           uploadTime: new Date().toISOString(),
-          jobDescription: jobDescription
+          jobDescription: jobDescription,
+          analysisResults: analysisResults
         }
       });
     } catch (error) {
       console.error("Error processing file:", error);
-      toast.error("There was an error processing your file");
+      toast.error("There was an error analyzing your resume");
+    } finally {
       setIsLoading(false);
     }
   };

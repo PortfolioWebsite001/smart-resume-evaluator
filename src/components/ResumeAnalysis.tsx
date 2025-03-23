@@ -4,43 +4,17 @@ import { Check, X, AlertCircle, ChevronDown, ChevronUp, Search, FileText } from 
 import { Button } from "@/components/ui/button";
 import AnalysisChart from "./AnalysisChart";
 import AIFeedback from "./AIFeedback";
-
-// Mock data for demonstration
-const MOCK_ANALYSIS = {
-  score: 68,
-  sections: {
-    summary: { present: true, quality: "good" },
-    experience: { present: true, quality: "excellent" },
-    education: { present: true, quality: "good" },
-    skills: { present: true, quality: "fair" },
-    projects: { present: false, quality: "missing" },
-    certifications: { present: false, quality: "missing" },
-  },
-  keywords: {
-    matching: ["JavaScript", "React", "Node.js", "frontend development"],
-    missing: ["TypeScript", "GraphQL", "CI/CD", "Agile methodology"],
-  },
-  formatting: {
-    atsCompatible: true,
-    issues: ["Inconsistent bullet point formatting", "Consider using a simpler font"],
-  },
-  aiSuggestions: [
-    "Add a projects section to highlight your practical experience",
-    "Include TypeScript in your skills section",
-    "Quantify your achievements with more specific metrics",
-    "Include relevant certifications to strengthen your profile",
-    "Use more active verbs in your experience descriptions"
-  ],
-};
+import { ResumeAnalysisResult } from "@/utils/geminiAPI";
 
 interface ResumeAnalysisProps {
   fileName: string;
   fileSize: number;
   uploadTime: string;
   jobDescription?: string;
+  analysisResults: ResumeAnalysisResult;
 }
 
-const ResumeAnalysis = ({ fileName, fileSize, uploadTime, jobDescription }: ResumeAnalysisProps) => {
+const ResumeAnalysis = ({ fileName, fileSize, uploadTime, jobDescription, analysisResults }: ResumeAnalysisProps) => {
   const [sectionExpanded, setSectionExpanded] = useState<string>("overview");
 
   const toggleSection = (section: string) => {
@@ -97,17 +71,23 @@ const ResumeAnalysis = ({ fileName, fileSize, uploadTime, jobDescription }: Resu
               <span className="text-muted-foreground">Size:</span>
               <span className="font-medium">{formatFileSize(fileSize)}</span>
             </div>
+            {jobDescription && (
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Job Analysis:</span>
+                <span className="font-medium text-green-500">Included</span>
+              </div>
+            )}
           </div>
         </div>
 
         <div className="analysis-card micro-animate-in" style={{ animationDelay: "100ms" }}>
           <h3 className="text-lg font-medium mb-4">ATS Compatibility Score</h3>
-          <AnalysisChart score={MOCK_ANALYSIS.score} />
+          <AnalysisChart score={analysisResults.score} />
           <div className="mt-4 text-center">
             <p className="text-sm text-muted-foreground">
-              {MOCK_ANALYSIS.score >= 80
+              {analysisResults.score >= 80
                 ? "Excellent! Your resume is well-optimized for ATS."
-                : MOCK_ANALYSIS.score >= 60
+                : analysisResults.score >= 60
                 ? "Good, but there's room for improvement."
                 : "Your resume needs significant improvements for ATS."}
             </p>
@@ -116,7 +96,7 @@ const ResumeAnalysis = ({ fileName, fileSize, uploadTime, jobDescription }: Resu
 
         <div className="analysis-card micro-animate-in" style={{ animationDelay: "200ms" }}>
           <h3 className="text-lg font-medium mb-4">AI Feedback</h3>
-          <AIFeedback suggestions={MOCK_ANALYSIS.aiSuggestions} />
+          <AIFeedback suggestions={analysisResults.aiSuggestions} />
           
           <div className="mt-6">
             <Button className="w-full">Download Full Report</Button>
@@ -142,7 +122,7 @@ const ResumeAnalysis = ({ fileName, fileSize, uploadTime, jobDescription }: Resu
           
           {sectionExpanded === "overview" && (
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              {Object.entries(MOCK_ANALYSIS.sections).map(([section, { present, quality }]) => (
+              {Object.entries(analysisResults.sections).map(([section, { present, quality }]) => (
                 <div 
                   key={section}
                   className="p-3 border rounded-lg flex items-center justify-between"
@@ -196,8 +176,8 @@ const ResumeAnalysis = ({ fileName, fileSize, uploadTime, jobDescription }: Resu
                     Matching Keywords
                   </h4>
                   <div className="flex flex-wrap gap-2">
-                    {MOCK_ANALYSIS.keywords.matching.map(keyword => (
-                      <span key={keyword} className="px-2 py-1 bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-300 text-xs rounded-full">
+                    {analysisResults.keywords.matching.map((keyword, index) => (
+                      <span key={index} className="px-2 py-1 bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-300 text-xs rounded-full">
                         {keyword}
                       </span>
                     ))}
@@ -210,8 +190,8 @@ const ResumeAnalysis = ({ fileName, fileSize, uploadTime, jobDescription }: Resu
                     Missing Keywords
                   </h4>
                   <div className="flex flex-wrap gap-2">
-                    {MOCK_ANALYSIS.keywords.missing.map(keyword => (
-                      <span key={keyword} className="px-2 py-1 bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-300 text-xs rounded-full">
+                    {analysisResults.keywords.missing.map((keyword, index) => (
+                      <span key={index} className="px-2 py-1 bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-300 text-xs rounded-full">
                         {keyword}
                       </span>
                     ))}
@@ -239,23 +219,23 @@ const ResumeAnalysis = ({ fileName, fileSize, uploadTime, jobDescription }: Resu
           {sectionExpanded === "formatting" && (
             <div className="mt-4 space-y-4">
               <div className="flex items-center p-3 rounded-lg bg-primary/5 border border-primary/20">
-                {MOCK_ANALYSIS.formatting.atsCompatible ? (
+                {analysisResults.formatting.atsCompatible ? (
                   <Check className="h-5 w-5 text-green-500 mr-2 flex-shrink-0" />
                 ) : (
                   <AlertCircle className="h-5 w-5 text-amber-500 mr-2 flex-shrink-0" />
                 )}
                 <span>
-                  {MOCK_ANALYSIS.formatting.atsCompatible
+                  {analysisResults.formatting.atsCompatible
                     ? "Your resume is generally compatible with ATS systems"
                     : "Your resume may have compatibility issues with some ATS systems"}
                 </span>
               </div>
               
-              {MOCK_ANALYSIS.formatting.issues.length > 0 && (
+              {analysisResults.formatting.issues.length > 0 && (
                 <div>
                   <h4 className="text-sm font-medium mb-2">Formatting Issues:</h4>
                   <ul className="space-y-2">
-                    {MOCK_ANALYSIS.formatting.issues.map((issue, index) => (
+                    {analysisResults.formatting.issues.map((issue, index) => (
                       <li key={index} className="flex items-start">
                         <AlertCircle className="h-4 w-4 text-amber-500 mr-2 mt-0.5 flex-shrink-0" />
                         <span className="text-sm">{issue}</span>

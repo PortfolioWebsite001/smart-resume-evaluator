@@ -5,6 +5,7 @@ import Layout from "@/components/Layout";
 import ResumeAnalysis from "@/components/ResumeAnalysis";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
+import { ResumeAnalysisResult } from "@/utils/geminiAPI";
 
 const Analysis = () => {
   const location = useLocation();
@@ -14,6 +15,7 @@ const Analysis = () => {
     fileSize: number;
     uploadTime: string;
     jobDescription?: string;
+    analysisResults: ResumeAnalysisResult;
   } | null;
 
   useEffect(() => {
@@ -51,6 +53,7 @@ const Analysis = () => {
           fileSize={state.fileSize}
           uploadTime={state.uploadTime}
           jobDescription={state.jobDescription}
+          analysisResults={state.analysisResults}
         />
       </div>
     </Layout>
