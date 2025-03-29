@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -23,6 +24,7 @@ import Layout from '@/components/Layout';
 
 const PaymentForm = () => {
   const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [mpesaCode, setMpesaCode] = useState('');
   const [loading, setLoading] = useState(false);
@@ -42,7 +44,7 @@ const PaymentForm = () => {
     setLoading(true);
     
     try {
-      await submitPayment(phoneNumber, mpesaCode);
+      await submitPayment(email, phoneNumber, mpesaCode);
     } catch (error) {
       console.error('Payment submission error:', error);
     } finally {
@@ -92,6 +94,21 @@ const PaymentForm = () => {
                       </div>
                       
                       <div className="space-y-2">
+                        <Label htmlFor="email">Email Address</Label>
+                        <Input
+                          id="email"
+                          type="email"
+                          placeholder="Enter your email address"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          required
+                        />
+                        <p className="text-sm text-muted-foreground">
+                          This email will be used to verify your payment
+                        </p>
+                      </div>
+                      
+                      <div className="space-y-2">
                         <Label htmlFor="phoneNumber">Phone Number</Label>
                         <Input
                           id="phoneNumber"
@@ -121,7 +138,7 @@ const PaymentForm = () => {
                     <Button 
                       type="submit" 
                       className="w-full" 
-                      disabled={loading || !fullName || !phoneNumber || !mpesaCode}
+                      disabled={loading || !fullName || !email || !phoneNumber || !mpesaCode}
                     >
                       {loading ? 'Submitting...' : 'Submit Payment Details'}
                     </Button>

@@ -95,13 +95,13 @@ const AdminPanel = () => {
               };
             }
 
-            // Get user email
-            const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(payment.user_id);
+            // Get user email from profiles (we're storing email in full_name field)
+            const userEmail = userData?.full_name || 'Unknown';
             
             return {
               ...payment,
-              user_name: userData?.full_name || 'Unknown',
-              user_email: authUser?.user?.email || 'Unknown',
+              user_name: userEmail,
+              user_email: userEmail,
             };
           })
         );
@@ -197,7 +197,6 @@ const AdminPanel = () => {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Date</TableHead>
-                    <TableHead>User</TableHead>
                     <TableHead>Email</TableHead>
                     <TableHead>M-Pesa Code</TableHead>
                     <TableHead className="text-right">Action</TableHead>
@@ -209,7 +208,6 @@ const AdminPanel = () => {
                       <TableCell>
                         {new Date(payment.payment_date).toLocaleDateString()}
                       </TableCell>
-                      <TableCell>{payment.user_name}</TableCell>
                       <TableCell>{payment.user_email}</TableCell>
                       <TableCell className="font-mono">
                         {payment.mpesa_code}

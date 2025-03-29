@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -8,22 +9,6 @@ import { CreditCard, Check, ThumbsUp } from 'lucide-react';
 const Subscription = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-
-  const premiumPlan = {
-    title: "Premium Plan",
-    price: "KSh 150",
-    interval: "per week",
-    features: [
-      "Unlimited resume scans",
-      "Advanced AI analysis",
-      "Personalized improvement suggestions",
-      "Compare to job descriptions",
-      "Export detailed reports",
-      "Priority support"
-    ],
-    cta: "Upgrade Now",
-    popular: true
-  };
 
   return (
     <Layout>
