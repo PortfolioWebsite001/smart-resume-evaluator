@@ -1,7 +1,19 @@
 
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
-import { FileText, Moon, Sun } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { FileText, Moon, Sun, LogOut, User, LayoutDashboard, FileSearch, CreditCard } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import {
+  NavigationMenu,
+  NavigationMenuContent,
+  NavigationMenuItem,
+  NavigationMenuLink,
+  NavigationMenuList,
+  NavigationMenuTrigger,
+  navigationMenuTriggerStyle,
+} from "@/components/ui/navigation-menu";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 const Header = () => {
   const [scrolled, setScrolled] = useState(false);
@@ -9,6 +21,8 @@ const Header = () => {
     localStorage.getItem("theme") === "dark" ||
     (!localStorage.getItem("theme") && window.matchMedia("(prefers-color-scheme: dark)").matches)
   );
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -51,6 +65,101 @@ const Header = () => {
         </Link>
         
         <div className="flex items-center space-x-6">
+          <NavigationMenu>
+            <NavigationMenuList>
+              <NavigationMenuItem>
+                <NavigationMenuLink
+                  className={navigationMenuTriggerStyle()}
+                  asChild
+                >
+                  <Link to="/">Home</Link>
+                </NavigationMenuLink>
+              </NavigationMenuItem>
+
+              {user ? (
+                <>
+                  <NavigationMenuItem>
+                    <NavigationMenuLink
+                      className={navigationMenuTriggerStyle()}
+                      asChild
+                    >
+                      <Link to="/dashboard">
+                        <LayoutDashboard className="mr-1 h-4 w-4" />
+                        Dashboard
+                      </Link>
+                    </NavigationMenuLink>
+                  </NavigationMenuItem>
+                  
+                  <NavigationMenuItem>
+                    <NavigationMenuLink
+                      className={navigationMenuTriggerStyle()}
+                      asChild
+                    >
+                      <Link to="/analysis">
+                        <FileSearch className="mr-1 h-4 w-4" />
+                        New Analysis
+                      </Link>
+                    </NavigationMenuLink>
+                  </NavigationMenuItem>
+                  
+                  <NavigationMenuItem>
+                    <NavigationMenuLink
+                      className={navigationMenuTriggerStyle()}
+                      asChild
+                    >
+                      <Link to="/subscription">
+                        <CreditCard className="mr-1 h-4 w-4" />
+                        Subscription
+                      </Link>
+                    </NavigationMenuLink>
+                  </NavigationMenuItem>
+                  
+                  <NavigationMenuItem>
+                    <NavigationMenuTrigger>
+                      <User className="mr-1 h-4 w-4" />
+                      Account
+                    </NavigationMenuTrigger>
+                    <NavigationMenuContent>
+                      <div className="grid gap-2 p-4 w-[200px]">
+                        <div className="text-sm font-medium">
+                          {user.email}
+                        </div>
+                        <Button 
+                          variant="outline" 
+                          className="w-full justify-start" 
+                          onClick={() => signOut()}
+                        >
+                          <LogOut className="mr-2 h-4 w-4" />
+                          Sign Out
+                        </Button>
+                      </div>
+                    </NavigationMenuContent>
+                  </NavigationMenuItem>
+                </>
+              ) : (
+                <>
+                  <NavigationMenuItem>
+                    <NavigationMenuLink
+                      className={navigationMenuTriggerStyle()}
+                      asChild
+                    >
+                      <Link to="/login">Login</Link>
+                    </NavigationMenuLink>
+                  </NavigationMenuItem>
+                  
+                  <NavigationMenuItem>
+                    <NavigationMenuLink
+                      className={cn(navigationMenuTriggerStyle(), "bg-primary text-primary-foreground hover:bg-primary/90")}
+                      asChild
+                    >
+                      <Link to="/signup">Sign Up</Link>
+                    </NavigationMenuLink>
+                  </NavigationMenuItem>
+                </>
+              )}
+            </NavigationMenuList>
+          </NavigationMenu>
+
           <button
             onClick={toggleDarkMode}
             className="p-2 rounded-full hover:bg-secondary transition-colors"

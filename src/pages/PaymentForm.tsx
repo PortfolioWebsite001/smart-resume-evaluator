@@ -32,6 +32,11 @@ const PaymentForm = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    // If user is logged in, pre-fill the email
+    if (user && user.email) {
+      setEmail(user.email);
+    }
+    
     // If user is not logged in, redirect to login
     if (!user) {
       toast.error('Please log in to make a payment');
@@ -41,12 +46,21 @@ const PaymentForm = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!email) {
+      toast.error('Email is required for account verification');
+      return;
+    }
+    
     setLoading(true);
     
     try {
       await submitPayment(email, phoneNumber, mpesaCode);
+      toast.success('Payment submitted successfully!');
+      navigate('/dashboard');
     } catch (error) {
       console.error('Payment submission error:', error);
+      toast.error('Failed to submit payment. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -103,7 +117,7 @@ const PaymentForm = () => {
                           onChange={(e) => setEmail(e.target.value)}
                           required
                         />
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-sm text-muted-foreground font-medium">
                           This email will be used to verify your payment
                         </p>
                       </div>
