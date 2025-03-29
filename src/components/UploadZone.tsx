@@ -5,6 +5,9 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { analyzeResume } from "@/utils/geminiAPI";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { Link } from "react-router-dom";
 
 interface UploadZoneProps {
   onFileUpload: (file: File) => void;
@@ -19,6 +22,7 @@ const UploadZone = ({ onFileUpload }: UploadZoneProps) => {
   const [jobDescription, setJobDescription] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
+  const { user, getRemainingFreeScans, hasActiveSubscription } = useAuth();
 
   const handleDragOver = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -87,6 +91,23 @@ const UploadZone = ({ onFileUpload }: UploadZoneProps) => {
       toast.error("Please select a file to upload");
       return;
     }
+    
+    // If user is not logged in, redirect to login page
+    if (!user) {
+      toast.error("Please sign in to analyze your resume");
+      navigate("/login");
+      return;
+    }
+    
+    // Check if user has free scans left or an active subscription
+    const remainingScans = await getRemainingFreeScans();
+    const isSubscribed = await hasActiveSubscription();
+    
+    if (remainingScans <= 0 && !isSubscribed) {
+      toast.error("You've used all your free scans. Please subscribe to continue.");
+      navigate("/subscription");
+      return;
+    }
 
     setIsLoading(true);
     
@@ -94,7 +115,24 @@ const UploadZone = ({ onFileUpload }: UploadZoneProps) => {
     const clearScanInterval = simulateScanningProcess();
     
     try {
+      // Analyze the resume with Gemini API
       const analysisResults = await analyzeResume(selectedFile, jobDescription);
+      
+      // Store the results in Supabase
+      const { data, error } = await supabase
+        .from('resume_scans')
+        .insert({
+          user_id: user.id,
+          file_name: selectedFile.name,
+          file_size: selectedFile.size,
+          job_description: jobDescription,
+          score: analysisResults.score,
+          scan_results: analysisResults
+        })
+        .select()
+        .single();
+      
+      if (error) throw error;
       
       onFileUpload(selectedFile);
       
@@ -108,7 +146,8 @@ const UploadZone = ({ onFileUpload }: UploadZoneProps) => {
             fileSize: selectedFile.size,
             uploadTime: new Date().toISOString(),
             jobDescription: jobDescription,
-            analysisResults: analysisResults
+            analysisResults: analysisResults,
+            scanId: data.id
           }
         });
       }, 3000);
@@ -123,6 +162,23 @@ const UploadZone = ({ onFileUpload }: UploadZoneProps) => {
 
   return (
     <div className="w-full max-w-2xl mx-auto space-y-6">
+      {!user && (
+        <div className="bg-primary/10 border border-primary/20 rounded-lg p-4 text-sm">
+          <p className="font-medium">Create an account to track your resume analyses</p>
+          <p className="text-muted-foreground mt-1">
+            Sign up to get 3 free resume scans and personalized feedback.
+          </p>
+          <div className="mt-3 flex space-x-2">
+            <Button asChild size="sm" variant="default">
+              <Link to="/signup">Sign Up</Link>
+            </Button>
+            <Button asChild size="sm" variant="outline">
+              <Link to="/login">Log In</Link>
+            </Button>
+          </div>
+        </div>
+      )}
+      
       <div
         className={`upload-zone min-h-[280px] ${isDragging ? "dragging" : ""} ${selectedFile ? "border-primary/50 bg-primary/5" : ""}`}
         onDragOver={handleDragOver}
