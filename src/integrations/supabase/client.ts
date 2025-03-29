@@ -14,7 +14,6 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     persistSession: true,
     autoRefreshToken: true,
     storage: localStorage,
-    // No email verification required
-    flowType: 'pkce'
+    flowType: 'pkce' // No email verification required
   }
 });

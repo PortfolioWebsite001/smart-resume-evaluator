@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -9,6 +8,22 @@ import { CreditCard, Check, ThumbsUp } from 'lucide-react';
 const Subscription = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+
+  const premiumPlan = {
+    title: "Premium Plan",
+    price: "KSh 150",
+    interval: "per week",
+    features: [
+      "Unlimited resume scans",
+      "Advanced AI analysis",
+      "Personalized improvement suggestions",
+      "Compare to job descriptions",
+      "Export detailed reports",
+      "Priority support"
+    ],
+    cta: "Upgrade Now",
+    popular: true
+  };
 
   return (
     <Layout>
@@ -24,7 +39,7 @@ const Subscription = () => {
           <div className="bg-primary p-6 text-primary-foreground">
             <h2 className="text-2xl font-bold">Premium Subscription</h2>
             <div className="mt-4 flex items-baseline justify-center">
-              <span className="text-5xl font-extrabold">KES 150</span>
+              <span className="text-5xl font-extrabold">KSh 150</span>
               <span className="ml-1 text-xl text-muted">/week</span>
             </div>
           </div>

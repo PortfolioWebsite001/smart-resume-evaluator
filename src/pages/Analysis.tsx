@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import Layout from "@/components/Layout";
@@ -65,12 +64,17 @@ const Analysis = () => {
             return;
           }
           
+          // Parse the scan_results from JSON string to object
+          const parsedResults = typeof data.scan_results === 'string' 
+            ? JSON.parse(data.scan_results) 
+            : data.scan_results;
+          
           setAnalysisData({
             fileName: data.file_name,
             fileSize: data.file_size,
             uploadTime: data.scan_date,
             jobDescription: data.job_description,
-            analysisResults: data.scan_results,
+            analysisResults: parsedResults as ResumeAnalysisResult,
             scanId: data.id
           });
         } catch (error) {

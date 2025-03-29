@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -197,82 +196,91 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function verifyPayment(userEmail: string) {
-    if (!user) {
-      toast.error('You must be logged in as admin to verify payments');
-      return;
-    }
-    
     try {
-      // Get user details by email
-      const { data: userData, error: userError } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('id', 
-          supabase.auth.getUserById(
-            (await supabase.auth.admin.getUserByEmail(userEmail)).data.user?.id || ''
-          )
-        )
-        .single();
-        
-      if (userError) throw userError;
-      
-      const userId = userData.id;
-      
-      // Get the latest unverified payment for this user
+      // First, find the user's payment record
       const { data: paymentData, error: paymentError } = await supabase
         .from('payment_records')
-        .select('id')
-        .eq('user_id', userId)
+        .select('*')
         .eq('verified', false)
         .order('payment_date', { ascending: false })
-        .limit(1)
-        .single();
-        
-      if (paymentError) throw paymentError;
+        .limit(1);
+    
+      if (paymentError || !paymentData || paymentData.length === 0) {
+        toast.error('No pending payment found for this user.');
+        return false;
+      }
       
-      // Mark payment as verified
+      // Get the payment ID
+      const paymentId = paymentData[0].id;
+      
+      // Get current user's email for admin log
+      const currentUser = await supabase.auth.getUser();
+      const adminEmail = currentUser.data.user?.email || 'Unknown Admin';
+      
+      // Update the payment record to mark as verified
       const { error: updateError } = await supabase
         .from('payment_records')
         .update({
           verified: true,
-          verified_by: user.email,
+          verified_by: adminEmail,
           verified_at: new Date().toISOString()
         })
-        .eq('id', paymentData.id);
-        
-      if (updateError) throw updateError;
+        .eq('id', paymentId);
+    
+      if (updateError) {
+        toast.error('Failed to verify payment.');
+        return false;
+      }
       
-      // Create subscription for 1 week
-      const startDate = new Date();
-      const endDate = new Date();
-      endDate.setDate(endDate.getDate() + 7); // Add 7 days
+      // Create subscription
+      const oneWeekFromNow = new Date();
+      oneWeekFromNow.setDate(oneWeekFromNow.getDate() + 7);
+      
+      // Get user by email to find their ID
+      const { data: userData, error: userError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('full_name', userEmail)
+        .single();
+    
+      if (userError || !userData) {
+        toast.error('User not found.');
+        return false;
+      }
       
       const { error: subscriptionError } = await supabase
         .from('subscriptions')
         .insert({
-          user_id: userId,
-          start_date: startDate.toISOString(),
-          end_date: endDate.toISOString(),
+          user_id: userData.id,
+          start_date: new Date().toISOString(),
+          end_date: oneWeekFromNow.toISOString(),
+          active: true
         });
-        
-      if (subscriptionError) throw subscriptionError;
+    
+      if (subscriptionError) {
+        toast.error('Failed to create subscription.');
+        return false;
+      }
       
       // Log admin action
-      const { error: logError } = await supabase
+      await supabase
         .from('admin_logs')
         .insert({
-          action: 'verify_payment',
-          admin_email: user.email || '',
+          action: 'payment_verification',
+          admin_email: adminEmail,
           target_user_email: userEmail,
-          details: { payment_id: paymentData.id }
+          details: {
+            payment_id: paymentId,
+            verified_at: new Date().toISOString()
+          }
         });
-        
-      if (logError) throw logError;
       
-      toast.success('Payment verified and subscription created successfully!');
-    } catch (error: any) {
+      toast.success('Payment verified and subscription activated!');
+      return true;
+    } catch (error) {
       console.error('Error verifying payment:', error);
-      toast.error(error.message || 'Failed to verify payment');
+      toast.error('An error occurred while verifying payment.');
+      return false;
     }
   }
 

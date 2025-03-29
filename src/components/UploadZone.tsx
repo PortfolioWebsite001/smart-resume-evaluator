@@ -1,4 +1,3 @@
-
 import { useState, useRef, DragEvent, ChangeEvent } from "react";
 import { FileUp, File, X, Loader2, Scan } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -71,7 +70,6 @@ const UploadZone = ({ onFileUpload }: UploadZoneProps) => {
     setIsScanning(true);
     setScanProgress(0);
     
-    // Simulate a scanning process with progress updates
     let progress = 0;
     const interval = setInterval(() => {
       progress += 5;
@@ -92,14 +90,12 @@ const UploadZone = ({ onFileUpload }: UploadZoneProps) => {
       return;
     }
     
-    // If user is not logged in, redirect to login page
     if (!user) {
       toast.error("Please sign in to analyze your resume");
       navigate("/login");
       return;
     }
     
-    // Check if user has free scans left or an active subscription
     const remainingScans = await getRemainingFreeScans();
     const isSubscribed = await hasActiveSubscription();
     
@@ -111,14 +107,11 @@ const UploadZone = ({ onFileUpload }: UploadZoneProps) => {
 
     setIsLoading(true);
     
-    // Start the scanning animation
     const clearScanInterval = simulateScanningProcess();
     
     try {
-      // Analyze the resume with Gemini API
       const analysisResults = await analyzeResume(selectedFile, jobDescription);
       
-      // Store the results in Supabase
       const { data, error } = await supabase
         .from('resume_scans')
         .insert({
@@ -127,7 +120,7 @@ const UploadZone = ({ onFileUpload }: UploadZoneProps) => {
           file_size: selectedFile.size,
           job_description: jobDescription,
           score: analysisResults.score,
-          scan_results: analysisResults
+          scan_results: JSON.stringify(analysisResults) as any
         })
         .select()
         .single();
@@ -136,7 +129,6 @@ const UploadZone = ({ onFileUpload }: UploadZoneProps) => {
       
       onFileUpload(selectedFile);
       
-      // Wait for the scanning animation to complete
       setTimeout(() => {
         clearScanInterval();
         

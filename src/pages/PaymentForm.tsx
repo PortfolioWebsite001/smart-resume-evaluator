@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -70,6 +69,12 @@ const PaymentForm = () => {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
+                  <div className="text-center mb-6">
+                    <h3 className="text-xl font-semibold">Payment Details</h3>
+                    <p className="text-muted-foreground mt-1">
+                      Complete your payment of <span className="font-medium">KSh 150</span> to activate your premium subscription
+                    </p>
+                  </div>
                   <form onSubmit={handleSubmit} className="space-y-6">
                     <div className="space-y-4">
                       <div className="space-y-2">
