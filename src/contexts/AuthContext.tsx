@@ -14,6 +14,9 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   getRemainingFreeScans: () => Promise<number>;
   hasActiveSubscription: () => Promise<boolean>;
+  verifyAdminPin: (pin: string) => Promise<boolean>;
+  submitPayment: (phoneNumber: string, mpesaCode: string) => Promise<void>;
+  verifyPayment: (userEmail: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -144,6 +147,135 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  async function verifyAdminPin(pin: string) {
+    try {
+      const { data, error } = await supabase
+        .from('admin_pins')
+        .select('pin')
+        .single();
+        
+      if (error) throw error;
+      
+      return data.pin === pin;
+    } catch (error) {
+      console.error('Error verifying admin PIN:', error);
+      return false;
+    }
+  }
+
+  async function submitPayment(phoneNumber: string, mpesaCode: string) {
+    if (!user) {
+      toast.error('You must be logged in to submit a payment');
+      return;
+    }
+    
+    try {
+      // Update user profile with phone number
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({ phone_number: phoneNumber })
+        .eq('id', user.id);
+        
+      if (profileError) throw profileError;
+      
+      // Create payment record
+      const { error: paymentError } = await supabase
+        .from('payment_records')
+        .insert({
+          user_id: user.id,
+          mpesa_code: mpesaCode,
+        });
+        
+      if (paymentError) throw paymentError;
+      
+      toast.success('Payment submitted successfully! Waiting for verification.');
+      navigate('/dashboard');
+    } catch (error: any) {
+      console.error('Error submitting payment:', error);
+      toast.error(error.message || 'Failed to submit payment');
+    }
+  }
+
+  async function verifyPayment(userEmail: string) {
+    if (!user) {
+      toast.error('You must be logged in as admin to verify payments');
+      return;
+    }
+    
+    try {
+      // Get user details by email
+      const { data: userData, error: userError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', 
+          supabase.auth.getUserById(
+            (await supabase.auth.admin.getUserByEmail(userEmail)).data.user?.id || ''
+          )
+        )
+        .single();
+        
+      if (userError) throw userError;
+      
+      const userId = userData.id;
+      
+      // Get the latest unverified payment for this user
+      const { data: paymentData, error: paymentError } = await supabase
+        .from('payment_records')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('verified', false)
+        .order('payment_date', { ascending: false })
+        .limit(1)
+        .single();
+        
+      if (paymentError) throw paymentError;
+      
+      // Mark payment as verified
+      const { error: updateError } = await supabase
+        .from('payment_records')
+        .update({
+          verified: true,
+          verified_by: user.email,
+          verified_at: new Date().toISOString()
+        })
+        .eq('id', paymentData.id);
+        
+      if (updateError) throw updateError;
+      
+      // Create subscription for 1 week
+      const startDate = new Date();
+      const endDate = new Date();
+      endDate.setDate(endDate.getDate() + 7); // Add 7 days
+      
+      const { error: subscriptionError } = await supabase
+        .from('subscriptions')
+        .insert({
+          user_id: userId,
+          start_date: startDate.toISOString(),
+          end_date: endDate.toISOString(),
+        });
+        
+      if (subscriptionError) throw subscriptionError;
+      
+      // Log admin action
+      const { error: logError } = await supabase
+        .from('admin_logs')
+        .insert({
+          action: 'verify_payment',
+          admin_email: user.email || '',
+          target_user_email: userEmail,
+          details: { payment_id: paymentData.id }
+        });
+        
+      if (logError) throw logError;
+      
+      toast.success('Payment verified and subscription created successfully!');
+    } catch (error: any) {
+      console.error('Error verifying payment:', error);
+      toast.error(error.message || 'Failed to verify payment');
+    }
+  }
+
   const value = {
     session,
     user,
@@ -153,6 +285,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signOut,
     getRemainingFreeScans,
     hasActiveSubscription,
+    verifyAdminPin,
+    submitPayment,
+    verifyPayment,
   };
 
   return (

@@ -9,23 +9,101 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      admin_logs: {
+        Row: {
+          action: string
+          admin_email: string
+          created_at: string
+          details: Json | null
+          id: string
+          target_user_email: string | null
+        }
+        Insert: {
+          action: string
+          admin_email: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          target_user_email?: string | null
+        }
+        Update: {
+          action?: string
+          admin_email?: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          target_user_email?: string | null
+        }
+        Relationships: []
+      }
+      admin_pins: {
+        Row: {
+          created_at: string
+          id: string
+          pin: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          pin: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          pin?: string
+        }
+        Relationships: []
+      }
+      payment_records: {
+        Row: {
+          id: string
+          mpesa_code: string
+          payment_date: string
+          user_id: string
+          verified: boolean
+          verified_at: string | null
+          verified_by: string | null
+        }
+        Insert: {
+          id?: string
+          mpesa_code: string
+          payment_date?: string
+          user_id: string
+          verified?: boolean
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Update: {
+          id?: string
+          mpesa_code?: string
+          payment_date?: string
+          user_id?: string
+          verified?: boolean
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
           full_name: string
           id: string
+          phone_number: string | null
           updated_at: string
         }
         Insert: {
           created_at?: string
           full_name: string
           id: string
+          phone_number?: string | null
           updated_at?: string
         }
         Update: {
           created_at?: string
           full_name?: string
           id?: string
+          phone_number?: string | null
           updated_at?: string
         }
         Relationships: []
