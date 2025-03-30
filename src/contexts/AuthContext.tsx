@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -163,6 +164,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     
     try {
+      // Store the email in the profile's full_name field since we're using it for payment verification
       const { error: profileError } = await supabase
         .from('profiles')
         .update({ 
@@ -187,11 +189,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (error: any) {
       console.error('Error submitting payment:', error);
       toast.error(error.message || 'Failed to submit payment');
+      throw error;
     }
   }
 
   async function verifyPayment(userEmail: string) {
     try {
+      // Find the user by email (stored in full_name field)
       const { data: userData, error: userError } = await supabase
         .from('profiles')
         .select('id')
@@ -199,10 +203,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .single();
     
       if (userError || !userData) {
-        toast.error('User not found.');
-        return;
+        toast.error('User not found with this email.');
+        throw new Error('User not found with this email.');
       }
       
+      // Check for pending payment
       const { data: paymentData, error: paymentError } = await supabase
         .from('payment_records')
         .select('*')
@@ -213,14 +218,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
       if (paymentError || !paymentData || paymentData.length === 0) {
         toast.error('No pending payment found for this user.');
-        return;
+        throw new Error('No pending payment found for this user.');
       }
       
       const paymentId = paymentData[0].id;
       
+      // Get current admin user
       const currentUser = await supabase.auth.getUser();
       const adminEmail = currentUser.data.user?.email || 'Unknown Admin';
       
+      // Mark payment as verified
       const { error: updateError } = await supabase
         .from('payment_records')
         .update({
@@ -231,10 +238,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .eq('id', paymentId);
     
       if (updateError) {
-        toast.error('Failed to verify payment.');
-        return;
+        toast.error('Failed to verify payment: ' + updateError.message);
+        throw updateError;
       }
       
+      // Create or update subscription
       const oneWeekFromNow = new Date();
       oneWeekFromNow.setDate(oneWeekFromNow.getDate() + 7);
       
@@ -248,10 +256,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
     
       if (subscriptionError) {
-        toast.error('Failed to create subscription.');
-        return;
+        toast.error('Failed to create subscription: ' + subscriptionError.message);
+        throw subscriptionError;
       }
       
+      // Log the admin action
       await supabase
         .from('admin_logs')
         .insert({
@@ -265,11 +274,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
       
       toast.success('Payment verified and subscription activated!');
-      return;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error verifying payment:', error);
-      toast.error('An error occurred while verifying payment.');
-      return;
+      toast.error('An error occurred while verifying payment: ' + error.message);
+      throw error;
     }
   }
 

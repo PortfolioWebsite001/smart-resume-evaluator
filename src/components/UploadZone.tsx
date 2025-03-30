@@ -1,3 +1,4 @@
+
 import { useState, useRef, DragEvent, ChangeEvent } from "react";
 import { FileUp, File, X, Loader2, Scan } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -37,6 +38,12 @@ const UploadZone = ({ onFileUpload }: UploadZoneProps) => {
     e.preventDefault();
     setIsDragging(false);
     
+    if (!user) {
+      toast.error("Please sign in to analyze your resume");
+      navigate("/login");
+      return;
+    }
+    
     const files = e.dataTransfer.files;
     if (files.length) {
       validateAndSetFile(files[0]);
@@ -44,6 +51,12 @@ const UploadZone = ({ onFileUpload }: UploadZoneProps) => {
   };
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    if (!user) {
+      toast.error("Please sign in to analyze your resume");
+      navigate("/login");
+      return;
+    }
+    
     if (e.target.files && e.target.files.length > 0) {
       validateAndSetFile(e.target.files[0]);
     }
@@ -152,25 +165,30 @@ const UploadZone = ({ onFileUpload }: UploadZoneProps) => {
     }
   };
 
-  return (
-    <div className="w-full max-w-2xl mx-auto space-y-6">
-      {!user && (
-        <div className="bg-primary/10 border border-primary/20 rounded-lg p-4 text-sm">
-          <p className="font-medium">Create an account to track your resume analyses</p>
-          <p className="text-muted-foreground mt-1">
-            Sign up to get 3 free resume scans and personalized feedback.
+  // Redirect to login if not authenticated
+  if (!user) {
+    return (
+      <div className="w-full max-w-2xl mx-auto space-y-6">
+        <div className="bg-primary/10 border border-primary/20 rounded-lg p-6 text-center">
+          <h3 className="text-xl font-semibold mb-2">Sign In Required</h3>
+          <p className="text-muted-foreground mb-4">
+            You need to create an account or sign in to analyze your resume.
           </p>
-          <div className="mt-3 flex space-x-2">
-            <Button asChild size="sm" variant="default">
-              <Link to="/signup">Sign Up</Link>
+          <div className="flex justify-center space-x-3">
+            <Button asChild size="lg" variant="default">
+              <Link to="/signup">Create Account</Link>
             </Button>
-            <Button asChild size="sm" variant="outline">
-              <Link to="/login">Log In</Link>
+            <Button asChild size="lg" variant="outline">
+              <Link to="/login">Sign In</Link>
             </Button>
           </div>
         </div>
-      )}
-      
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full max-w-2xl mx-auto space-y-6">      
       <div
         className={`upload-zone min-h-[280px] ${isDragging ? "dragging" : ""} ${selectedFile ? "border-primary/50 bg-primary/5" : ""}`}
         onDragOver={handleDragOver}

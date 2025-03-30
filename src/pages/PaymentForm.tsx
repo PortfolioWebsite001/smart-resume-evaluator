@@ -19,7 +19,7 @@ import {
   AlertTitle,
 } from '@/components/ui/alert';
 import { toast } from 'sonner';
-import { CreditCard, Info, ChevronsRight } from 'lucide-react';
+import { CreditCard, Info, ChevronsRight, AlertCircle } from 'lucide-react';
 import Layout from '@/components/Layout';
 
 const PaymentForm = () => {
@@ -28,13 +28,15 @@ const PaymentForm = () => {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [mpesaCode, setMpesaCode] = useState('');
   const [loading, setLoading] = useState(false);
+  const [emailLocked, setEmailLocked] = useState(false);
   const { user, submitPayment } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    // If user is logged in, pre-fill the email
+    // If user is logged in, pre-fill and lock the email
     if (user && user.email) {
       setEmail(user.email);
+      setEmailLocked(true);
     }
     
     // If user is not logged in, redirect to login
@@ -52,11 +54,22 @@ const PaymentForm = () => {
       return;
     }
     
+    // Ensure email matches the logged-in user's email
+    if (user && user.email && email.toLowerCase() !== user.email.toLowerCase()) {
+      toast.error('Please use the same email address that you registered with');
+      return;
+    }
+    
+    if (!fullName || !phoneNumber || !mpesaCode) {
+      toast.error('All fields are required');
+      return;
+    }
+    
     setLoading(true);
     
     try {
       await submitPayment(email, phoneNumber, mpesaCode);
-      toast.success('Payment submitted successfully!');
+      toast.success('Payment submitted successfully! Waiting for verification.');
       navigate('/dashboard');
     } catch (error) {
       console.error('Payment submission error:', error);
@@ -91,6 +104,17 @@ const PaymentForm = () => {
                       Complete your payment of <span className="font-medium">KSh 150</span> to activate your premium subscription
                     </p>
                   </div>
+                  
+                  {emailLocked && (
+                    <Alert className="mb-6">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertTitle>Important</AlertTitle>
+                      <AlertDescription>
+                        You must use the email address you registered with ({user?.email}).
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                  
                   <form onSubmit={handleSubmit} className="space-y-6">
                     <div className="space-y-4">
                       <div className="space-y-2">
@@ -115,10 +139,11 @@ const PaymentForm = () => {
                           placeholder="Enter your email address"
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
+                          disabled={emailLocked}
                           required
                         />
                         <p className="text-sm text-muted-foreground font-medium">
-                          This email will be used to verify your payment
+                          This email will be used to verify your payment and must match your account email
                         </p>
                       </div>
                       
