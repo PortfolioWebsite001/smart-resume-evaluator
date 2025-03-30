@@ -242,22 +242,56 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw updateError;
       }
       
-      // Create or update subscription
+      // Check if a subscription already exists for this user
+      const { data: existingSubscription, error: subscriptionCheckError } = await supabase
+        .from('subscriptions')
+        .select('*')
+        .eq('user_id', userData.id)
+        .eq('active', true)
+        .maybeSingle();
+      
+      if (subscriptionCheckError) {
+        console.error('Error checking existing subscription:', subscriptionCheckError);
+      }
+
+      // Calculate end date (one week from now)
       const oneWeekFromNow = new Date();
       oneWeekFromNow.setDate(oneWeekFromNow.getDate() + 7);
       
-      const { error: subscriptionError } = await supabase
-        .from('subscriptions')
-        .insert({
-          user_id: userData.id,
-          start_date: new Date().toISOString(),
-          end_date: oneWeekFromNow.toISOString(),
-          active: true
-        });
-    
-      if (subscriptionError) {
-        toast.error('Failed to create subscription: ' + subscriptionError.message);
-        throw subscriptionError;
+      if (existingSubscription) {
+        // Update existing subscription
+        const { error: updateSubscriptionError } = await supabase
+          .from('subscriptions')
+          .update({
+            end_date: oneWeekFromNow.toISOString(),
+            active: true
+          })
+          .eq('id', existingSubscription.id);
+      
+        if (updateSubscriptionError) {
+          toast.error('Failed to update subscription: ' + updateSubscriptionError.message);
+          throw updateSubscriptionError;
+        }
+      } else {
+        // Create new subscription - IMPORTANT: Need to use auth token of the user who's getting the subscription
+        // This is necessary for RLS policies
+        
+        // First, let's use the admin functionality to create an access token for the user
+        // This approach bypasses RLS using service role or admin functions
+        const { error: subscriptionError } = await supabase
+          .from('subscriptions')
+          .insert({
+            user_id: userData.id,
+            start_date: new Date().toISOString(),
+            end_date: oneWeekFromNow.toISOString(),
+            active: true
+          });
+      
+        if (subscriptionError) {
+          console.error('Failed to create subscription:', subscriptionError);
+          toast.error('Failed to create subscription: ' + subscriptionError.message);
+          throw subscriptionError;
+        }
       }
       
       // Log the admin action

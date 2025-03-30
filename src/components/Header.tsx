@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { FileText, Moon, Sun, LogOut, User, LayoutDashboard, FileSearch, CreditCard, Shield } from "lucide-react";
@@ -25,7 +24,6 @@ const Header = () => {
   const navigate = useNavigate();
   const [isAdmin, setIsAdmin] = useState(false);
 
-  // Check if the user email is an admin (simple check for demo purposes)
   useEffect(() => {
     if (user?.email) {
       const adminEmails = ["admin@example.com", "admin@test.com"];
@@ -125,7 +123,6 @@ const Header = () => {
                     </NavigationMenuLink>
                   </NavigationMenuItem>
                   
-                  {/* Admin section */}
                   <NavigationMenuItem>
                     <NavigationMenuLink
                       className={navigationMenuTriggerStyle()}

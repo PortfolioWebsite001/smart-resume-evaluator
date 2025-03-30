@@ -29,7 +29,8 @@ import {
   AlertCircle,
   Search,
   RefreshCw,
-  CheckCircle2
+  CheckCircle2,
+  FileText
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
@@ -52,21 +53,29 @@ interface User {
   scans_count: number;
 }
 
+interface ResumeScan {
+  id: string;
+  file_name: string;
+  score: number;
+  scan_date: string;
+  user_id: string;
+}
+
 const AdminPanel = () => {
   const [userEmail, setUserEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [payments, setPayments] = useState<PaymentRecord[]>([]);
   const [recentUsers, setRecentUsers] = useState<User[]>([]);
+  const [recentScans, setRecentScans] = useState<ResumeScan[]>([]);
   const [loadingPayments, setLoadingPayments] = useState(true);
   const [loadingUsers, setLoadingUsers] = useState(true);
+  const [loadingScans, setLoadingScans] = useState(true);
   const { verifyPayment, user } = useAuth();
   const navigate = useNavigate();
 
   // Check if admin is logged in
   useEffect(() => {
     const checkAdminAccess = async () => {
-      // In a real app, we would check if the user has admin rights
-      // For now, we'll just check if they got here through the PIN verification
       const { data: sessionData } = await supabase.auth.getSession();
       
       if (!sessionData.session) {
@@ -78,10 +87,11 @@ const AdminPanel = () => {
     checkAdminAccess();
   }, [navigate]);
 
-  // Load unverified payments
+  // Load data
   useEffect(() => {
     fetchPayments();
     fetchRecentUsers();
+    fetchRecentScans();
   }, []);
 
   const fetchPayments = async () => {
@@ -138,31 +148,25 @@ const AdminPanel = () => {
   const fetchRecentUsers = async () => {
     setLoadingUsers(true);
     try {
-      // Get recent users along with their profiles
-      const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers({
-        page: 1,
-        perPage: 10,
-      });
+      // Get profiles directly instead of using auth.admin.listUsers
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(10);
 
-      if (authError) throw authError;
+      if (profilesError) throw profilesError;
 
       const users: User[] = [];
       
-      // For each user, get profile, subscription status and scan count
-      for (const authUser of (authUsers?.users || [])) {
+      // For each profile, get subscription status and scan count
+      for (const profile of (profilesData || [])) {
         try {
-          // Get profile
-          const { data: profileData } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', authUser.id)
-            .single();
-
           // Get subscription status
           const { data: subscriptionData } = await supabase
             .from('subscriptions')
             .select('*')
-            .eq('user_id', authUser.id)
+            .eq('user_id', profile.id)
             .eq('active', true)
             .gt('end_date', new Date().toISOString())
             .single();
@@ -171,12 +175,12 @@ const AdminPanel = () => {
           const { count: scansCount } = await supabase
             .from('resume_scans')
             .select('*', { count: 'exact' })
-            .eq('user_id', authUser.id);
+            .eq('user_id', profile.id);
 
           users.push({
-            id: authUser.id,
-            email: authUser.email || 'No email',
-            full_name: profileData?.full_name || 'Unknown',
+            id: profile.id,
+            email: profile.full_name || 'No email', // Using full_name as email
+            full_name: profile.full_name || 'Unknown',
             subscription_status: subscriptionData ? 'active' : 'none',
             scans_count: scansCount || 0
           });
@@ -191,6 +195,26 @@ const AdminPanel = () => {
       toast.error('Failed to load user records');
     } finally {
       setLoadingUsers(false);
+    }
+  };
+  
+  const fetchRecentScans = async () => {
+    setLoadingScans(true);
+    try {
+      const { data: scanData, error: scanError } = await supabase
+        .from('resume_scans')
+        .select('*')
+        .order('scan_date', { ascending: false })
+        .limit(10);
+        
+      if (scanError) throw scanError;
+      
+      setRecentScans(scanData || []);
+    } catch (error) {
+      console.error('Error loading scans:', error);
+      toast.error('Failed to load scan records');
+    } finally {
+      setLoadingScans(false);
     }
   };
 
@@ -210,9 +234,9 @@ const AdminPanel = () => {
       fetchRecentUsers();
       
       toast.success(`Payment verified for ${userEmail}`);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error verifying payment:', error);
-      toast.error('Failed to verify payment');
+      toast.error('Failed to verify payment: ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -221,6 +245,7 @@ const AdminPanel = () => {
   const refreshData = () => {
     fetchPayments();
     fetchRecentUsers();
+    fetchRecentScans();
     toast.success('Data refreshed');
   };
 
@@ -371,13 +396,65 @@ const AdminPanel = () => {
                 </Table>
               )}
             </CardContent>
-            <CardFooter>
-              <p className="text-sm text-muted-foreground">
-                Showing {recentUsers.length} most recent users
-              </p>
-            </CardFooter>
           </Card>
         </div>
+        
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <FileText className="mr-2 h-5 w-5" />
+              Recent Resume Scans
+            </CardTitle>
+            <CardDescription>
+              View recently analyzed resumes
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {loadingScans ? (
+              <div className="text-center py-4">Loading scans...</div>
+            ) : recentScans.length === 0 ? (
+              <div className="text-center py-4">No scans found</div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>File Name</TableHead>
+                    <TableHead>Score</TableHead>
+                    <TableHead>Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {recentScans.map((scan) => (
+                    <TableRow key={scan.id}>
+                      <TableCell>
+                        {new Date(scan.scan_date).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell>{scan.file_name}</TableCell>
+                      <TableCell>
+                        <Badge className={
+                          scan.score >= 80 ? "bg-green-500" :
+                          scan.score >= 60 ? "bg-amber-500" : "bg-red-500"
+                        }>
+                          {scan.score}/100
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => navigate(`/analysis?id=${scan.id}`)}
+                        >
+                          View Analysis
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </Layout>
   );
