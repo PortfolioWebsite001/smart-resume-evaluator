@@ -1,6 +1,7 @@
+
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { FileText, Moon, Sun, LogOut, User, LayoutDashboard, FileSearch, CreditCard, Shield } from "lucide-react";
+import { FileText, Moon, Sun, LogOut, User, LayoutDashboard, FileSearch, CreditCard, Shield, Menu, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   NavigationMenu,
@@ -23,6 +24,7 @@ const Header = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [isAdmin, setIsAdmin] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     if (user?.email) {
@@ -56,6 +58,10 @@ const Header = () => {
     setIsDarkMode(!isDarkMode);
   };
 
+  const toggleMobileMenu = () => {
+    setMobileMenuOpen(!mobileMenuOpen);
+  };
+
   return (
     <header
       className={`sticky top-0 z-50 w-full transition-all duration-300 ${
@@ -73,12 +79,27 @@ const Header = () => {
           <span>AI Resume Analyzer</span>
         </Link>
         
-        <div className="flex items-center space-x-6">
-          <NavigationMenu>
-            <NavigationMenuList>
-              <NavigationMenuItem>
+        {/* Mobile menu button */}
+        <button
+          className="md:hidden p-2 rounded-md hover:bg-secondary transition-colors"
+          onClick={toggleMobileMenu}
+          aria-label="Toggle menu"
+        >
+          {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+        </button>
+        
+        <div className={`
+          md:flex md:items-center md:space-x-6
+          ${mobileMenuOpen 
+            ? "absolute left-0 right-0 top-full flex flex-col items-start px-4 pt-2 pb-4 gap-4 backdrop-blur-lg bg-background/95 shadow-md border-b border-border transition-all duration-300" 
+            : "hidden"
+          }
+        `}>
+          <NavigationMenu className="md:w-auto w-full">
+            <NavigationMenuList className={`md:flex md:space-x-1 ${mobileMenuOpen ? "flex flex-col w-full gap-2" : ""}`}>
+              <NavigationMenuItem className="w-full">
                 <NavigationMenuLink
-                  className={navigationMenuTriggerStyle()}
+                  className={cn(navigationMenuTriggerStyle(), "w-full justify-start")}
                   asChild
                 >
                   <Link to="/">Home</Link>
@@ -87,9 +108,9 @@ const Header = () => {
 
               {user ? (
                 <>
-                  <NavigationMenuItem>
+                  <NavigationMenuItem className="w-full">
                     <NavigationMenuLink
-                      className={navigationMenuTriggerStyle()}
+                      className={cn(navigationMenuTriggerStyle(), "w-full justify-start")}
                       asChild
                     >
                       <Link to="/dashboard">
@@ -99,9 +120,9 @@ const Header = () => {
                     </NavigationMenuLink>
                   </NavigationMenuItem>
                   
-                  <NavigationMenuItem>
+                  <NavigationMenuItem className="w-full">
                     <NavigationMenuLink
-                      className={navigationMenuTriggerStyle()}
+                      className={cn(navigationMenuTriggerStyle(), "w-full justify-start")}
                       asChild
                     >
                       <Link to="/analysis">
@@ -111,9 +132,9 @@ const Header = () => {
                     </NavigationMenuLink>
                   </NavigationMenuItem>
                   
-                  <NavigationMenuItem>
+                  <NavigationMenuItem className="w-full">
                     <NavigationMenuLink
-                      className={navigationMenuTriggerStyle()}
+                      className={cn(navigationMenuTriggerStyle(), "w-full justify-start")}
                       asChild
                     >
                       <Link to="/subscription">
@@ -123,32 +144,37 @@ const Header = () => {
                     </NavigationMenuLink>
                   </NavigationMenuItem>
                   
-                  <NavigationMenuItem>
-                    <NavigationMenuLink
-                      className={navigationMenuTriggerStyle()}
-                      asChild
-                    >
-                      <Link to="/admin">
-                        <Shield className="mr-1 h-4 w-4" />
-                        Admin
-                      </Link>
-                    </NavigationMenuLink>
-                  </NavigationMenuItem>
+                  {isAdmin && (
+                    <NavigationMenuItem className="w-full">
+                      <NavigationMenuLink
+                        className={cn(navigationMenuTriggerStyle(), "w-full justify-start")}
+                        asChild
+                      >
+                        <Link to="/admin">
+                          <Shield className="mr-1 h-4 w-4" />
+                          Admin
+                        </Link>
+                      </NavigationMenuLink>
+                    </NavigationMenuItem>
+                  )}
                   
-                  <NavigationMenuItem>
-                    <NavigationMenuTrigger>
+                  <NavigationMenuItem className="w-full">
+                    <NavigationMenuTrigger className="w-full justify-start md:justify-center">
                       <User className="mr-1 h-4 w-4" />
                       Account
                     </NavigationMenuTrigger>
                     <NavigationMenuContent>
                       <div className="grid gap-2 p-4 w-[200px]">
-                        <div className="text-sm font-medium">
+                        <div className="text-sm font-medium truncate">
                           {user.email}
                         </div>
                         <Button 
                           variant="outline" 
                           className="w-full justify-start" 
-                          onClick={() => signOut()}
+                          onClick={() => {
+                            signOut();
+                            setMobileMenuOpen(false);
+                          }}
                         >
                           <LogOut className="mr-2 h-4 w-4" />
                           Sign Out
@@ -159,18 +185,18 @@ const Header = () => {
                 </>
               ) : (
                 <>
-                  <NavigationMenuItem>
+                  <NavigationMenuItem className="w-full">
                     <NavigationMenuLink
-                      className={navigationMenuTriggerStyle()}
+                      className={cn(navigationMenuTriggerStyle(), "w-full justify-start")}
                       asChild
                     >
                       <Link to="/login">Login</Link>
                     </NavigationMenuLink>
                   </NavigationMenuItem>
                   
-                  <NavigationMenuItem>
+                  <NavigationMenuItem className="w-full">
                     <NavigationMenuLink
-                      className={cn(navigationMenuTriggerStyle(), "bg-primary text-primary-foreground hover:bg-primary/90")}
+                      className={cn(navigationMenuTriggerStyle(), "w-full justify-start bg-primary text-primary-foreground hover:bg-primary/90")}
                       asChild
                     >
                       <Link to="/signup">Sign Up</Link>

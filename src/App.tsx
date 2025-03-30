@@ -1,5 +1,5 @@
 
-import { useRoutes } from 'react-router-dom';
+import { Route, Routes } from 'react-router-dom';
 import { Suspense, lazy, useEffect, useState } from 'react';
 import { Toaster } from 'sonner';
 import './App.css';
@@ -68,94 +68,24 @@ function AppContent() {
 }
 
 function App() {
-  const routes = useRoutes([
-    {
-      path: '/',
-      element: (
-        <Suspense fallback={<div>Loading...</div>}>
-          <Index />
-        </Suspense>
-      ),
-    },
-    {
-      path: '/login',
-      element: (
-        <Suspense fallback={<div>Loading...</div>}>
-          <Login />
-        </Suspense>
-      ),
-    },
-    {
-      path: '/signup',
-      element: (
-        <Suspense fallback={<div>Loading...</div>}>
-          <Signup />
-        </Suspense>
-      ),
-    },
-    {
-      path: '/dashboard',
-      element: (
-        <Suspense fallback={<div>Loading...</div>}>
-          <Dashboard />
-        </Suspense>
-      ),
-    },
-    {
-      path: '/analysis',
-      element: (
-        <Suspense fallback={<div>Loading...</div>}>
-          <Analysis />
-        </Suspense>
-      ),
-    },
-    {
-      path: '/admin',
-      element: (
-        <Suspense fallback={<div>Loading...</div>}>
-          <AdminLogin />
-        </Suspense>
-      ),
-    },
-    {
-      path: '/admin/panel',
-      element: (
-        <Suspense fallback={<div>Loading...</div>}>
-          <AdminPanel />
-        </Suspense>
-      ),
-    },
-    {
-      path: '/subscription',
-      element: (
-        <Suspense fallback={<div>Loading...</div>}>
-          <Subscription />
-        </Suspense>
-      ),
-    },
-    {
-      path: '/payment',
-      element: (
-        <Suspense fallback={<div>Loading...</div>}>
-          <PaymentForm />
-        </Suspense>
-      ),
-    },
-    {
-      path: '*',
-      element: (
-        <Suspense fallback={<div>Loading...</div>}>
-          <NotFound />
-        </Suspense>
-      ),
-    },
-  ]);
-
   return (
     <AuthProvider>
       <Toaster position="top-center" richColors />
       <AppContent />
-      {routes}
+      <Suspense fallback={<div>Loading...</div>}>
+        <Routes>
+          <Route path="/" element={<Index />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/analysis" element={<Analysis />} />
+          <Route path="/admin" element={<AdminLogin />} />
+          <Route path="/admin/panel" element={<AdminPanel />} />
+          <Route path="/subscription" element={<Subscription />} />
+          <Route path="/payment" element={<PaymentForm />} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </Suspense>
     </AuthProvider>
   );
 }
