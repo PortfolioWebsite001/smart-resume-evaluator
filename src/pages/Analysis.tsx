@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import Layout from "@/components/Layout";
@@ -24,7 +23,6 @@ const Analysis = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  // State for analysis data
   const [analysisData, setAnalysisData] = useState<{
     fileName: string;
     fileSize: number;
@@ -34,18 +32,15 @@ const Analysis = () => {
     scanId?: string;
   } | null>(null);
 
-  // Check for scan ID in URL params (for direct access)
   const scanId = searchParams.get('id');
 
   useEffect(() => {
     const loadData = async () => {
-      // If we have state data from the navigation, use that
       if (location.state) {
         setAnalysisData(location.state);
         return;
       }
       
-      // If we have a scan ID in the URL, load from Supabase
       if (scanId) {
         if (!user) {
           toast.error("Please log in to view this analysis");
@@ -69,12 +64,22 @@ const Analysis = () => {
             return;
           }
           
-          // Parse the scan_results from JSON string to object
           let parsedResults;
           try {
             parsedResults = typeof data.scan_results === 'string' 
               ? JSON.parse(data.scan_results) 
               : data.scan_results;
+              
+            if (!parsedResults.resumeText) {
+              parsedResults.resumeText = '';
+              console.log("Resume text was missing, set to empty string");
+            }
+            
+            if (!parsedResults.userName) {
+              parsedResults.userName = 'User';
+              console.log("Username was missing, set to 'User'");
+            }
+            
           } catch (e) {
             console.error("Error parsing scan results:", e);
             setError("Failed to parse analysis results. The data format may be invalid.");
@@ -98,7 +103,6 @@ const Analysis = () => {
           setLoading(false);
         }
       } else if (!location.state) {
-        // If we have neither state nor ID, redirect to home
         navigate("/");
       }
     };
@@ -153,31 +157,26 @@ const Analysis = () => {
     );
   }
 
-  if (!analysisData) {
-    return null; // Will redirect in the useEffect
-  }
-
-  // Check if analysisResults is valid
-  if (!analysisData.analysisResults || 
-      !analysisData.analysisResults.userName || 
-      !analysisData.analysisResults.score) {
+  if (!analysisData || !analysisData.analysisResults) {
     return (
       <Layout>
         <div className="container mx-auto py-8">
           <div className="text-center p-8 border rounded-lg bg-destructive/10">
             <AlertCircle className="h-12 w-12 mx-auto text-destructive" />
-            <h3 className="mt-4 text-lg font-medium">Invalid Analysis Data</h3>
+            <h3 className="mt-4 text-lg font-medium">No Analysis Data</h3>
             <p className="mt-2 text-sm text-muted-foreground">
-              The analysis data appears to be corrupted or incomplete. Please try scanning your resume again.
+              No resume analysis data is available. Please try uploading your resume again.
             </p>
             <Button className="mt-4" onClick={() => navigate("/")}>
-              Try Again
+              Return Home
             </Button>
           </div>
         </div>
       </Layout>
     );
   }
+
+  const { userName = 'User', resumeText = '', score = 0 } = analysisData.analysisResults;
 
   return (
     <Layout>
@@ -193,7 +192,7 @@ const Analysis = () => {
           </Button>
           
           <h1 className="text-3xl font-bold animate-fade-in mb-2">
-            Hello, {analysisData.analysisResults.userName}!
+            Hello, {userName}!
           </h1>
           <p className="text-muted-foreground animate-fade-in" style={{ animationDelay: "100ms" }}>
             Here's your personalized resume analysis
@@ -211,15 +210,13 @@ const Analysis = () => {
         </div>
         
         <div className="grid gap-6 lg:grid-cols-12 mb-8">
-          {/* Resume Preview - Left column */}
           <div className="lg:col-span-6">
             <ResumePreview 
-              resumeText={analysisData.analysisResults.resumeText} 
-              userName={analysisData.analysisResults.userName} 
+              resumeText={resumeText} 
+              userName={userName} 
             />
           </div>
           
-          {/* Section Progress - Right column */}
           <div className="lg:col-span-6">
             <SectionProgress analysisResults={analysisData.analysisResults} />
           </div>
