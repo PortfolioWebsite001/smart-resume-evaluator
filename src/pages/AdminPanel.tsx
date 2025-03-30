@@ -34,6 +34,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 interface PaymentRecord {
   id: string;
@@ -64,6 +65,8 @@ interface ResumeScan {
 const AdminPanel = () => {
   const [userEmail, setUserEmail] = useState('');
   const [loading, setLoading] = useState(false);
+  const [verificationSuccess, setVerificationSuccess] = useState(false);
+  const [verificationMessage, setVerificationMessage] = useState('');
   const [payments, setPayments] = useState<PaymentRecord[]>([]);
   const [recentUsers, setRecentUsers] = useState<User[]>([]);
   const [recentScans, setRecentScans] = useState<ResumeScan[]>([]);
@@ -225,6 +228,9 @@ const AdminPanel = () => {
     }
     
     setLoading(true);
+    setVerificationSuccess(false);
+    setVerificationMessage('');
+    
     try {
       await verifyPayment(userEmail);
       setUserEmail('');
@@ -233,10 +239,12 @@ const AdminPanel = () => {
       fetchPayments();
       fetchRecentUsers();
       
-      toast.success(`Payment verified for ${userEmail}`);
+      setVerificationSuccess(true);
+      setVerificationMessage(`Payment verified for ${userEmail}. User now has premium access!`);
     } catch (error: any) {
       console.error('Error verifying payment:', error);
-      toast.error('Failed to verify payment: ' + error.message);
+      setVerificationSuccess(false);
+      setVerificationMessage('');
     } finally {
       setLoading(false);
     }
@@ -296,6 +304,16 @@ const AdminPanel = () => {
                 {loading ? 'Verifying...' : 'Authorize User'}
               </Button>
             </div>
+            
+            {verificationSuccess && (
+              <Alert className="mt-4 bg-green-50 dark:bg-green-950/30">
+                <CheckCircle className="h-4 w-4 text-green-500" />
+                <AlertTitle>Success</AlertTitle>
+                <AlertDescription>
+                  {verificationMessage}
+                </AlertDescription>
+              </Alert>
+            )}
           </CardContent>
         </Card>
 

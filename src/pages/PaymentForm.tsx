@@ -19,8 +19,9 @@ import {
   AlertTitle,
 } from '@/components/ui/alert';
 import { toast } from 'sonner';
-import { CreditCard, Info, ChevronsRight, AlertCircle } from 'lucide-react';
+import { CreditCard, Info, ChevronsRight, AlertCircle, Loader2 } from 'lucide-react';
 import Layout from '@/components/Layout';
+import { supabase } from '@/integrations/supabase/client';
 
 const PaymentForm = () => {
   const [fullName, setFullName] = useState('');
@@ -28,6 +29,8 @@ const PaymentForm = () => {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [mpesaCode, setMpesaCode] = useState('');
   const [loading, setLoading] = useState(false);
+  const [checkingEmail, setCheckingEmail] = useState(false);
+  const [emailExists, setEmailExists] = useState(true);
   const [emailLocked, setEmailLocked] = useState(false);
   const { user, submitPayment } = useAuth();
   const navigate = useNavigate();
@@ -37,6 +40,7 @@ const PaymentForm = () => {
     if (user && user.email) {
       setEmail(user.email);
       setEmailLocked(true);
+      setEmailExists(true);
     }
     
     // If user is not logged in, redirect to login
@@ -46,11 +50,49 @@ const PaymentForm = () => {
     }
   }, [user, navigate]);
 
+  // Debounced email check
+  useEffect(() => {
+    if (!email || emailLocked) return;
+    
+    const timeoutId = setTimeout(async () => {
+      if (email.length < 5 || !email.includes('@')) return;
+      
+      setCheckingEmail(true);
+      try {
+        // Check if the email matches the current user
+        if (user && user.email && email.toLowerCase() === user.email.toLowerCase()) {
+          setEmailExists(true);
+          return;
+        }
+        
+        // Check if email exists in profiles
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('full_name', email)
+          .single();
+          
+        setEmailExists(!!data && !error);
+      } catch (error) {
+        console.error('Error checking email:', error);
+      } finally {
+        setCheckingEmail(false);
+      }
+    }, 500);
+    
+    return () => clearTimeout(timeoutId);
+  }, [email, user, emailLocked]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!email) {
       toast.error('Email is required for account verification');
+      return;
+    }
+    
+    if (!emailExists) {
+      toast.error('The email address you provided is not registered in our system');
       return;
     }
     
@@ -133,15 +175,26 @@ const PaymentForm = () => {
                       
                       <div className="space-y-2">
                         <Label htmlFor="email">Email Address</Label>
-                        <Input
-                          id="email"
-                          type="email"
-                          placeholder="Enter your email address"
-                          value={email}
-                          onChange={(e) => setEmail(e.target.value)}
-                          disabled={emailLocked}
-                          required
-                        />
+                        <div className="relative">
+                          <Input
+                            id="email"
+                            type="email"
+                            placeholder="Enter your email address"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            disabled={emailLocked}
+                            className={!emailExists && email.length > 0 ? "border-red-500" : ""}
+                            required
+                          />
+                          {checkingEmail && (
+                            <Loader2 className="absolute right-3 top-3 h-4 w-4 animate-spin text-muted-foreground" />
+                          )}
+                        </div>
+                        {!emailExists && email.length > 0 && (
+                          <p className="text-sm text-red-500">
+                            This email is not registered in our system
+                          </p>
+                        )}
                         <p className="text-sm text-muted-foreground font-medium">
                           This email will be used to verify your payment and must match your account email
                         </p>
@@ -177,7 +230,7 @@ const PaymentForm = () => {
                     <Button 
                       type="submit" 
                       className="w-full" 
-                      disabled={loading || !fullName || !email || !phoneNumber || !mpesaCode}
+                      disabled={loading || !fullName || !email || !phoneNumber || !mpesaCode || !emailExists}
                     >
                       {loading ? 'Submitting...' : 'Submit Payment Details'}
                     </Button>

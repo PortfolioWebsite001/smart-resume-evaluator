@@ -164,6 +164,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     
     try {
+      // Verify the email exists in the database
+      const { data: userExists, error: emailCheckError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('full_name', email)
+        .single();
+        
+      if (emailCheckError || !userExists) {
+        // If email doesn't exist in profiles, check if it matches the current user's email
+        if (user.email?.toLowerCase() !== email.toLowerCase()) {
+          toast.error('The email address you provided is not registered in our system');
+          return;
+        }
+      }
+      
       // Store the email in the profile's full_name field since we're using it for payment verification
       const { error: profileError } = await supabase
         .from('profiles')
@@ -185,7 +200,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (paymentError) throw paymentError;
       
       toast.success('Payment submitted successfully! Waiting for verification.');
-      navigate('/dashboard');
     } catch (error: any) {
       console.error('Error submitting payment:', error);
       toast.error(error.message || 'Failed to submit payment');
@@ -273,11 +287,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           throw updateSubscriptionError;
         }
       } else {
-        // Create new subscription - IMPORTANT: Need to use auth token of the user who's getting the subscription
-        // This is necessary for RLS policies
-        
-        // First, let's use the admin functionality to create an access token for the user
-        // This approach bypasses RLS using service role or admin functions
+        // Create new subscription
         const { error: subscriptionError } = await supabase
           .from('subscriptions')
           .insert({
@@ -307,7 +317,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         });
       
-      toast.success('Payment verified and subscription activated!');
+      toast.success('Payment verified and subscription activated successfully!');
+      return;
     } catch (error: any) {
       console.error('Error verifying payment:', error);
       toast.error('An error occurred while verifying payment: ' + error.message);

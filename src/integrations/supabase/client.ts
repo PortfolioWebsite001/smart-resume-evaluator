@@ -17,3 +17,20 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     flowType: 'pkce' // No email verification required
   }
 });
+
+// Create a subscription client that listens for real-time updates
+export const subscribeToPaymentUpdates = (userId: string, callback: () => void) => {
+  return supabase
+    .channel('payment-updates')
+    .on(
+      'postgres_changes',
+      {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'subscriptions',
+        filter: `user_id=eq.${userId}`
+      },
+      callback
+    )
+    .subscribe();
+};
