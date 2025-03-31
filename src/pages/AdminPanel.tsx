@@ -39,11 +39,14 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 interface PaymentRecord {
   id: string;
-  email: string;
-  phone_number: string;
+  email: string | null;
+  phone_number: string | null;
   payment_date: string;
   user_id: string;
   verified: boolean;
+  mpesa_code: string;
+  verified_at: string | null;
+  verified_by: string | null;
 }
 
 interface User {
@@ -320,11 +323,11 @@ const AdminPanel = () => {
                         <TableCell>
                           {new Date(payment.payment_date).toLocaleDateString()}
                         </TableCell>
-                        <TableCell>{payment.email}</TableCell>
+                        <TableCell>{payment.email || 'N/A'}</TableCell>
                         <TableCell>
                           <div className="flex items-center">
                             <Phone className="h-3 w-3 mr-1 text-muted-foreground" />
-                            {payment.phone_number}
+                            {payment.phone_number || 'N/A'}
                           </div>
                         </TableCell>
                         <TableCell className="text-right">

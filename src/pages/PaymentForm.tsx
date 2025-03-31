@@ -95,15 +95,13 @@ const PaymentForm = () => {
                     </p>
                   </div>
                   
-                  {user && user.email && (
-                    <Alert className="mb-6">
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertTitle>Important</AlertTitle>
-                      <AlertDescription>
-                        Please make your payment first, then submit your details for verification.
-                      </AlertDescription>
-                    </Alert>
-                  )}
+                  <Alert className="mb-6">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertTitle>Important</AlertTitle>
+                    <AlertDescription>
+                      Please make your payment first, then submit your details for verification.
+                    </AlertDescription>
+                  </Alert>
                   
                   <form onSubmit={handleSubmit} className="space-y-6">
                     <div className="space-y-4">

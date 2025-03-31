@@ -176,15 +176,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function verifyPayment(userEmail: string) {
     try {
-      // Find the user by email
-      const { data: userData, error: userError } = await supabase
-        .from('auth')
-        .select('id')
-        .eq('email', userEmail)
-        .single();
-    
-      // If user not found by email, try to find by payment record email
-      if (userError || !userData) {
+      // Find user by email from auth service
+      const { data: userData, error: userError } = await supabase.auth.admin.getUserByEmail(userEmail);
+      
+      let userId;
+      
+      // If user not found by email in auth service, try to find by payment record email
+      if (userError || !userData || !userData.user) {
         const { data: paymentData, error: paymentError } = await supabase
           .from('payment_records')
           .select('user_id')
@@ -198,7 +196,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         
         // Use the user ID from the payment record
-        userData.id = paymentData.user_id;
+        userId = paymentData.user_id;
+      } else {
+        userId = userData.user.id;
       }
       
       // Get current admin user
@@ -213,7 +213,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           verified_by: adminEmail,
           verified_at: new Date().toISOString()
         })
-        .eq('user_id', userData.id)
+        .eq('user_id', userId)
         .eq('verified', false);
       
       // Calculate end date (7 days from now)
@@ -224,7 +224,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { data: existingSubscription } = await supabase
         .from('subscriptions')
         .select('*')
-        .eq('user_id', userData.id)
+        .eq('user_id', userId)
         .eq('active', true)
         .maybeSingle();
 
@@ -242,7 +242,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await supabase
           .from('subscriptions')
           .insert({
-            user_id: userData.id,
+            user_id: userId,
             start_date: new Date().toISOString(),
             end_date: oneWeekFromNow.toISOString(),
             active: true

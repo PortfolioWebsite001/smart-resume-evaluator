@@ -56,27 +56,33 @@ export type Database = {
       }
       payment_records: {
         Row: {
+          email: string | null
           id: string
           mpesa_code: string
           payment_date: string
+          phone_number: string | null
           user_id: string
           verified: boolean
           verified_at: string | null
           verified_by: string | null
         }
         Insert: {
+          email?: string | null
           id?: string
           mpesa_code: string
           payment_date?: string
+          phone_number?: string | null
           user_id: string
           verified?: boolean
           verified_at?: string | null
           verified_by?: string | null
         }
         Update: {
+          email?: string | null
           id?: string
           mpesa_code?: string
           payment_date?: string
+          phone_number?: string | null
           user_id?: string
           verified?: boolean
           verified_at?: string | null

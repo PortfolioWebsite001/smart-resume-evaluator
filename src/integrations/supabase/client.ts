@@ -27,7 +27,7 @@ export const subscribeToPaymentUpdates = (userId: string, callback: () => void) 
       {
         event: 'UPDATE',
         schema: 'public',
-        table: 'subscriptions',
+        table: 'payment_records',
         filter: `user_id=eq.${userId}`
       },
       callback
