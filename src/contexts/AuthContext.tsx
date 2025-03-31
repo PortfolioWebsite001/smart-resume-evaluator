@@ -176,29 +176,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function verifyPayment(userEmail: string) {
     try {
-      // Find user by email from auth service
-      const { data: userData, error: userError } = await supabase.auth.admin.getUserByEmail(userEmail);
+      // Try to find user by payment record first
+      const { data: paymentData, error: paymentError } = await supabase
+        .from('payment_records')
+        .select('user_id, email')
+        .eq('email', userEmail)
+        .eq('verified', false)
+        .maybeSingle();
       
-      let userId;
+      let userId = null;
       
-      // If user not found by email in auth service, try to find by payment record email
-      if (userError || !userData || !userData.user) {
-        const { data: paymentData, error: paymentError } = await supabase
-          .from('payment_records')
-          .select('user_id')
-          .eq('email', userEmail)
-          .eq('verified', false)
-          .single();
-      
-        if (paymentError || !paymentData) {
-          toast.error('No pending payment found for this email address.');
-          throw new Error('User not found with this email.');
-        }
-        
-        // Use the user ID from the payment record
+      if (paymentData && paymentData.user_id) {
         userId = paymentData.user_id;
       } else {
-        userId = userData.user.id;
+        // If no payment record, try to find user by auth email
+        const { data: usersData, error: userError } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('email', userEmail)
+          .maybeSingle();
+          
+        if (!usersData || userError) {
+          toast.error('No user found with this email address');
+          throw new Error('User not found with this email');
+        }
+        
+        userId = usersData.id;
+      }
+      
+      if (!userId) {
+        toast.error('Could not find a user associated with this email');
+        throw new Error('User ID not found');
       }
       
       // Get current admin user

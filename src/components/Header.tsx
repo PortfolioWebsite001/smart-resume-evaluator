@@ -28,7 +28,8 @@ const Header = () => {
 
   useEffect(() => {
     if (user?.email) {
-      const adminEmails = ["admin@example.com", "admin@test.com"];
+      // Add your admin emails here
+      const adminEmails = ["admin@example.com", "admin@test.com", "admin@gmail.com"];
       setIsAdmin(adminEmails.includes(user.email.toLowerCase()));
     } else {
       setIsAdmin(false);
@@ -82,7 +83,7 @@ const Header = () => {
         {/* Mobile menu button */}
         <button
           className="md:hidden p-2 rounded-md hover:bg-secondary transition-colors"
-          onClick={toggleMobileMenu}
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           aria-label="Toggle menu"
         >
           {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
@@ -208,7 +209,7 @@ const Header = () => {
           </NavigationMenu>
 
           <button
-            onClick={toggleDarkMode}
+            onClick={() => setIsDarkMode(!isDarkMode)}
             className="p-2 rounded-full hover:bg-secondary transition-colors"
             aria-label="Toggle dark mode"
           >
