@@ -1,4 +1,3 @@
-
 /**
  * Utility functions for interacting with Google's Gemini API
  */
@@ -110,9 +109,20 @@ export const analyzeResume = async (file: File, jobDescription?: string): Promis
     ${jobDescription ? `Job Description: ${jobDescription}` : 'No job description provided, analyze the resume on its own merit.'}
     
     Provide analysis in JSON format with these fields:
-    1. score: A number from 0-100 representing overall resume quality. Be critical and vary this score based on the quality of the resume. Don't default to 65 or any other specific number.
+    1. score: A number from 75-95 representing overall resume quality. Be critical and vary this score based on the quality of the resume.
     2. userName: Extract the applicant's name from the resume
-    3. sections: An object with keys for common resume sections (summary, experience, education, skills, projects, certifications), each having 'present' (boolean), 'quality' (string: excellent, good, fair, poor, or missing), 'feedback' (string with specific improvement suggestions), and 'score' (number from 0-100)
+    3. sections: An object with keys for required resume sections:
+       - Contact
+       - Professional Summary
+       - Professional Skills
+       - Professional Experience
+       - Professional Education
+       - Professional Certification
+       - Additional Information
+       - Projects
+       - Tools & Technologies
+       
+       Each section should have 'present' (boolean), 'quality' (string: excellent, good, fair, poor, or missing), 'feedback' (string with specific improvement suggestions), and 'score' (number from 0-100)
     4. keywords: Object with 'matching' and 'missing' arrays of keywords (strings)
     5. formatting: Object with 'atsCompatible' (boolean) and 'issues' (array of strings)
     6. aiSuggestions: Array of string suggestions for improvement
@@ -124,7 +134,7 @@ export const analyzeResume = async (file: File, jobDescription?: string): Promis
     Be critical and provide actionable feedback. Don't just say everything is good. Find areas to improve.
     For each section, give a specific score from 0-100 showing how good that particular section is.
     Use different scores for different sections - don't give the same score to everything.
-    Ensure the overall score is varied and reflects the actual quality of the resume, not a default value.
+    Ensure the overall score is varied and reflects the actual quality of the resume, within the range of 75-95.
     `;
 
     console.log("Sending request to Gemini API...");
@@ -197,11 +207,11 @@ export const analyzeResume = async (file: File, jobDescription?: string): Promis
  * Generate a fallback response in case of API failure
  */
 const generateFallbackResponse = (resumeText: string): ResumeAnalysisResult => {
-  // Generate a more varied score rather than always using 65
-  const baseScore = Math.floor(Math.random() * 31) + 50; // Random score between 50-80
+  // Generate a score within the 75-95 range
+  const baseScore = Math.floor(Math.random() * 21) + 75; // Random score between 75-95
   
-  // Generate different scores for sections instead of using fixed values
-  const generateSectionScore = () => Math.floor(Math.random() * 41) + 40; // 40-80
+  // Generate different scores for sections
+  const generateSectionScore = () => Math.floor(Math.random() * 31) + 70; // 70-100
   
   // Extract a name from the resume text (simple approach)
   let extractedName = "Applicant";
@@ -215,12 +225,15 @@ const generateFallbackResponse = (resumeText: string): ResumeAnalysisResult => {
     userName: extractedName,
     resumeText: resumeText,
     sections: {
-      summary: { present: true, quality: "fair", feedback: "Consider adding more specifics about your strengths and career goals.", score: generateSectionScore() },
-      experience: { present: true, quality: "good", feedback: "Add more quantifiable achievements to each position.", score: generateSectionScore() },
-      education: { present: true, quality: "good", feedback: "Your education section is solid, but consider adding relevant coursework.", score: generateSectionScore() },
-      skills: { present: true, quality: "fair", feedback: "Organize skills into categories and prioritize those most relevant to the job.", score: generateSectionScore() },
-      projects: { present: false, quality: "missing", feedback: "Add a projects section to showcase practical application of your skills.", score: generateSectionScore() },
-      certifications: { present: false, quality: "missing", feedback: "Consider adding relevant certifications to strengthen your qualifications.", score: generateSectionScore() },
+      "Contact": { present: true, quality: "good", feedback: "Ensure all contact information is up-to-date and professional.", score: generateSectionScore() },
+      "Professional Summary": { present: true, quality: "fair", feedback: "Consider adding more specifics about your strengths and career goals.", score: generateSectionScore() },
+      "Professional Skills": { present: true, quality: "good", feedback: "Organize skills into categories and prioritize those most relevant to the job.", score: generateSectionScore() },
+      "Professional Experience": { present: true, quality: "good", feedback: "Add more quantifiable achievements to each position.", score: generateSectionScore() },
+      "Professional Education": { present: true, quality: "good", feedback: "Your education section is solid, but consider adding relevant coursework.", score: generateSectionScore() },
+      "Professional Certification": { present: false, quality: "missing", feedback: "Consider adding relevant certifications to strengthen your qualifications.", score: generateSectionScore() },
+      "Additional Information": { present: false, quality: "missing", feedback: "Consider adding relevant additional information to make your profile more complete.", score: generateSectionScore() },
+      "Projects": { present: false, quality: "missing", feedback: "Add a projects section to showcase practical application of your skills.", score: generateSectionScore() },
+      "Tools & Technologies": { present: true, quality: "fair", feedback: "List more specific tools and technologies you're proficient with.", score: generateSectionScore() },
     },
     keywords: {
       matching: ["communication", "team player", "problem solving"],
@@ -241,6 +254,6 @@ const generateFallbackResponse = (resumeText: string): ResumeAnalysisResult => {
       "Create a concise summary that highlights your value proposition",
       "Add a projects section with 2-3 relevant projects"
     ],
-    overallSummary: `Your resume scores ${baseScore}/100. It has solid foundational elements but could benefit from more specific achievements and better keyword optimization. Focus on quantifying your impact and aligning your experience with the target job description. Improving the structure and adding missing sections will significantly enhance your resume's effectiveness.`
+    overallSummary: `Your resume scores ${baseScore}/100. It has solid foundational elements but could benefit from more specific achievements and better keyword optimization. Focus on quantifying your impact and aligning your experience with the target job description. Adding the missing sections (Projects, Certifications, Additional Information) would significantly enhance your resume's effectiveness.`
   };
 };
