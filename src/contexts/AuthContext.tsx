@@ -12,10 +12,10 @@ interface AuthContextType {
   signUp: (fullName: string, email: string, password: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
-  getRemainingFreeScans: () => Promise<number>;
+  getRemainingScans: () => Promise<number>;
   hasActiveSubscription: () => Promise<boolean>;
   verifyAdminPin: (pin: string) => Promise<boolean>;
-  submitPayment: (email: string, phoneNumber: string, mpesaCode: string) => Promise<void>;
+  submitPayment: (fullName: string, email: string, phoneNumber: string, mpesaCode: string) => Promise<void>;
   verifyPayment: (userEmail: string) => Promise<void>;
 }
 
@@ -100,20 +100,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  async function getRemainingFreeScans() {
+  async function getRemainingScans() {
     if (!user) return 0;
     
     try {
-      const { data, error, count } = await supabase
-        .from('resume_scans')
-        .select('*', { count: 'exact' })
-        .eq('user_id', user.id);
-        
-      if (error) throw error;
+      // Check if user has an active subscription first
+      const hasSubscription = await hasActiveSubscription();
       
-      return Math.max(0, 3 - (count || 0));
+      if (hasSubscription) {
+        // If user has subscription, check how many of the 15 scans they've used
+        const { data, error, count } = await supabase
+          .from('resume_scans')
+          .select('*', { count: 'exact' })
+          .eq('user_id', user.id);
+          
+        if (error) throw error;
+        
+        return Math.max(0, 15 - (count || 0));
+      } else {
+        // If no subscription, check free scans (3)
+        const { data, error, count } = await supabase
+          .from('resume_scans')
+          .select('*', { count: 'exact' })
+          .eq('user_id', user.id);
+          
+        if (error) throw error;
+        
+        return Math.max(0, 3 - (count || 0));
+      }
     } catch (error) {
-      console.error('Error checking free scans:', error);
+      console.error('Error checking scans:', error);
       return 0;
     }
   }
@@ -157,39 +173,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  async function submitPayment(email: string, phoneNumber: string, mpesaCode: string) {
+  async function submitPayment(fullName: string, email: string, phoneNumber: string, mpesaCode: string) {
     if (!user) {
       toast.error('You must be logged in to submit a payment');
       return;
     }
     
     try {
-      // Verify the email exists in the database
-      const { data: userExists, error: emailCheckError } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('full_name', email)
-        .single();
-        
-      if (emailCheckError || !userExists) {
-        // If email doesn't exist in profiles, check if it matches the current user's email
-        if (user.email?.toLowerCase() !== email.toLowerCase()) {
-          toast.error('The email address you provided is not registered in our system');
-          return;
-        }
-      }
-      
-      // Store the email in the profile's full_name field since we're using it for payment verification
+      // Store the email and phone number in the profile
       const { error: profileError } = await supabase
         .from('profiles')
         .update({ 
           phone_number: phoneNumber,
-          full_name: email
+          full_name: email  // Use email in full_name for identification
         })
         .eq('id', user.id);
         
       if (profileError) throw profileError;
       
+      // Store the payment record
       const { error: paymentError } = await supabase
         .from('payment_records')
         .insert({
@@ -209,7 +211,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function verifyPayment(userEmail: string) {
     try {
-      // Find the user by email (stored in full_name field)
+      // Find the user by email (stored in full_name field for matching payment records)
       const { data: userData, error: userError } = await supabase
         .from('profiles')
         .select('id')
@@ -268,7 +270,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.error('Error checking existing subscription:', subscriptionCheckError);
       }
 
-      // Calculate end date (one week from now)
+      // Calculate end date (7 days from now)
       const oneWeekFromNow = new Date();
       oneWeekFromNow.setDate(oneWeekFromNow.getDate() + 7);
       
@@ -317,7 +319,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         });
       
-      toast.success('Payment verified and subscription activated successfully!');
+      toast.success('Payment verified and subscription activated successfully! The user now has access to 15 scans.');
       return;
     } catch (error: any) {
       console.error('Error verifying payment:', error);
@@ -333,7 +335,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signUp,
     signIn,
     signOut,
-    getRemainingFreeScans,
+    getRemainingScans,
     hasActiveSubscription,
     verifyAdminPin,
     submitPayment,

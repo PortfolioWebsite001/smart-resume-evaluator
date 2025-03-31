@@ -19,9 +19,8 @@ import {
   AlertTitle,
 } from '@/components/ui/alert';
 import { toast } from 'sonner';
-import { CreditCard, Info, ChevronsRight, AlertCircle, Loader2 } from 'lucide-react';
+import { CreditCard, Info, AlertCircle, Loader2 } from 'lucide-react';
 import Layout from '@/components/Layout';
-import { supabase } from '@/integrations/supabase/client';
 
 const PaymentForm = () => {
   const [fullName, setFullName] = useState('');
@@ -29,9 +28,6 @@ const PaymentForm = () => {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [mpesaCode, setMpesaCode] = useState('');
   const [loading, setLoading] = useState(false);
-  const [checkingEmail, setCheckingEmail] = useState(false);
-  const [emailExists, setEmailExists] = useState(true);
-  const [emailLocked, setEmailLocked] = useState(false);
   const { user, submitPayment } = useAuth();
   const navigate = useNavigate();
 
@@ -39,8 +35,6 @@ const PaymentForm = () => {
     // If user is logged in, pre-fill and lock the email
     if (user && user.email) {
       setEmail(user.email);
-      setEmailLocked(true);
-      setEmailExists(true);
     }
     
     // If user is not logged in, redirect to login
@@ -50,55 +44,11 @@ const PaymentForm = () => {
     }
   }, [user, navigate]);
 
-  // Debounced email check
-  useEffect(() => {
-    if (!email || emailLocked) return;
-    
-    const timeoutId = setTimeout(async () => {
-      if (email.length < 5 || !email.includes('@')) return;
-      
-      setCheckingEmail(true);
-      try {
-        // Check if the email matches the current user
-        if (user && user.email && email.toLowerCase() === user.email.toLowerCase()) {
-          setEmailExists(true);
-          return;
-        }
-        
-        // Check if email exists in profiles
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('id')
-          .eq('full_name', email)
-          .single();
-          
-        setEmailExists(!!data && !error);
-      } catch (error) {
-        console.error('Error checking email:', error);
-      } finally {
-        setCheckingEmail(false);
-      }
-    }, 500);
-    
-    return () => clearTimeout(timeoutId);
-  }, [email, user, emailLocked]);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!email) {
       toast.error('Email is required for account verification');
-      return;
-    }
-    
-    if (!emailExists) {
-      toast.error('The email address you provided is not registered in our system');
-      return;
-    }
-    
-    // Ensure email matches the logged-in user's email
-    if (user && user.email && email.toLowerCase() !== user.email.toLowerCase()) {
-      toast.error('Please use the same email address that you registered with');
       return;
     }
     
@@ -110,7 +60,7 @@ const PaymentForm = () => {
     setLoading(true);
     
     try {
-      await submitPayment(email, phoneNumber, mpesaCode);
+      await submitPayment(fullName, email, phoneNumber, mpesaCode);
       toast.success('Payment submitted successfully! Waiting for verification.');
       navigate('/dashboard');
     } catch (error) {
@@ -143,16 +93,16 @@ const PaymentForm = () => {
                   <div className="text-center mb-6">
                     <h3 className="text-xl font-semibold">Payment Details</h3>
                     <p className="text-muted-foreground mt-1">
-                      Complete your payment of <span className="font-medium">KSh 150</span> to activate your premium subscription
+                      Complete your payment of <span className="font-medium">KSh 150</span> to activate your premium subscription with 15 scans
                     </p>
                   </div>
                   
-                  {emailLocked && (
+                  {user && user.email && (
                     <Alert className="mb-6">
                       <AlertCircle className="h-4 w-4" />
                       <AlertTitle>Important</AlertTitle>
                       <AlertDescription>
-                        You must use the email address you registered with ({user?.email}).
+                        You are registered with: {user.email}. We'll use this email for verification.
                       </AlertDescription>
                     </Alert>
                   )}
@@ -182,21 +132,12 @@ const PaymentForm = () => {
                             placeholder="Enter your email address"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
-                            disabled={emailLocked}
-                            className={!emailExists && email.length > 0 ? "border-red-500" : ""}
+                            readOnly={user && user.email ? true : false}
                             required
                           />
-                          {checkingEmail && (
-                            <Loader2 className="absolute right-3 top-3 h-4 w-4 animate-spin text-muted-foreground" />
-                          )}
                         </div>
-                        {!emailExists && email.length > 0 && (
-                          <p className="text-sm text-red-500">
-                            This email is not registered in our system
-                          </p>
-                        )}
                         <p className="text-sm text-muted-foreground font-medium">
-                          This email will be used to verify your payment and must match your account email
+                          This email will be used to verify your payment
                         </p>
                       </div>
                       
@@ -230,9 +171,16 @@ const PaymentForm = () => {
                     <Button 
                       type="submit" 
                       className="w-full" 
-                      disabled={loading || !fullName || !email || !phoneNumber || !mpesaCode || !emailExists}
+                      disabled={loading || !fullName || !email || !phoneNumber || !mpesaCode}
                     >
-                      {loading ? 'Submitting...' : 'Submit Payment Details'}
+                      {loading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Submitting...
+                        </>
+                      ) : (
+                        'Submit Payment Details'
+                      )}
                     </Button>
                   </form>
                 </CardContent>
@@ -252,7 +200,7 @@ const PaymentForm = () => {
                     <Info className="h-4 w-4" />
                     <AlertTitle>Subscription Price</AlertTitle>
                     <AlertDescription>
-                      <span className="font-bold text-lg">KES 150</span> for a one-week subscription
+                      <span className="font-bold text-lg">KES 150</span> for a one-week subscription with 15 scans
                     </AlertDescription>
                   </Alert>
                   
@@ -275,7 +223,7 @@ const PaymentForm = () => {
                     <div className="pt-2">
                       <h3 className="font-medium mb-1">After Submission:</h3>
                       <p className="text-sm">
-                        Once you submit, our admin will verify your payment and activate your premium access.
+                        Once you submit, our admin will verify your payment and activate your premium access with 15 scans.
                       </p>
                     </div>
                   </div>

@@ -240,7 +240,7 @@ const AdminPanel = () => {
       fetchRecentUsers();
       
       setVerificationSuccess(true);
-      setVerificationMessage(`Payment verified for ${userEmail}. User now has premium access!`);
+      setVerificationMessage(`Payment verified for ${userEmail}. User now has premium access with 15 scans!`);
     } catch (error: any) {
       console.error('Error verifying payment:', error);
       setVerificationSuccess(false);

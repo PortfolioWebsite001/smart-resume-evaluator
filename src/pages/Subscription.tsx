@@ -16,7 +16,7 @@ const Subscription = () => {
         <div className="max-w-4xl mx-auto text-center mb-10">
           <h1 className="text-4xl font-bold mb-4">Subscription Plans</h1>
           <p className="text-lg text-muted-foreground">
-            Upgrade to premium to get unlimited resume scans and analyses
+            Upgrade to premium to get 15 resume scans and professional analyses
           </p>
         </div>
 
@@ -33,7 +33,7 @@ const Subscription = () => {
             <ul className="space-y-3">
               <li className="flex items-start">
                 <Check className="h-5 w-5 text-green-500 mr-2 mt-0.5" />
-                <span>Unlimited resume scans</span>
+                <span><strong>15 resume scans</strong> (regular users get only 3)</span>
               </li>
               <li className="flex items-start">
                 <Check className="h-5 w-5 text-green-500 mr-2 mt-0.5" />
