@@ -34,3 +34,20 @@ export const subscribeToPaymentUpdates = (userId: string, callback: () => void) 
     )
     .subscribe();
 };
+
+// Create a subscription client that listens for subscription end date notifications
+export const subscribeToSubscriptionUpdates = (userId: string, callback: (payload: any) => void) => {
+  return supabase
+    .channel('subscription-updates')
+    .on(
+      'postgres_changes',
+      {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'subscriptions',
+        filter: `user_id=eq.${userId}`
+      },
+      callback
+    )
+    .subscribe();
+};

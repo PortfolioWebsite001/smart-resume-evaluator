@@ -1,89 +1,54 @@
-
-import { useEffect, useState } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import { Navigate, Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Layout from '@/components/Layout';
-import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { CalendarDays, FileText, ArrowRight, Clock, BarChart } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { UploadZone } from '@/components/UploadZone';
+import { FileText, Award, AlertTriangle, CreditCard } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 
-interface ResumeScan {
-  id: string;
-  file_name: string;
-  score: number;
-  scan_date: string;
-}
-
-interface Subscription {
-  id: string;
-  start_date: string;
-  end_date: string;
-  active: boolean;
-}
-
-const Dashboard = () => {
-  const { user, loading, hasActiveSubscription, getRemainingFreeScans } = useAuth();
-  const [scans, setScans] = useState<ResumeScan[]>([]);
-  const [subscription, setSubscription] = useState<Subscription | null>(null);
-  const [remainingScans, setRemainingScans] = useState<number>(0);
-  const [pageLoading, setPageLoading] = useState(true);
-
-  // Redirect if not logged in
-  if (!loading && !user) {
-    return <Navigate to="/login" />;
-  }
+export default function Dashboard() {
+  const { user, getRemainingScans, hasActiveSubscription, getSubscriptionEndDate } = useAuth();
+  const [remainingScans, setRemainingScans] = useState<number | null>(null);
+  const [isSubscribed, setIsSubscribed] = useState(false);
+  const [subscriptionEndDate, setSubscriptionEndDate] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    const fetchData = async () => {
-      if (!user) return;
+    if (!user) {
+      navigate('/login');
+      return;
+    }
 
+    const loadUserData = async () => {
       try {
-        // Fetch user's resume scans
-        const { data: scanData, error: scanError } = await supabase
-          .from('resume_scans')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('scan_date', { ascending: false });
-
-        if (scanError) throw scanError;
-        setScans(scanData || []);
-
-        // Fetch user's active subscription
-        const { data: subData, error: subError } = await supabase
-          .from('subscriptions')
-          .select('*')
-          .eq('user_id', user.id)
-          .eq('active', true)
-          .gt('end_date', new Date().toISOString())
-          .single();
-
-        if (subError && subError.code !== 'PGRST116') {
-          // PGRST116 means no rows returned
-          throw subError;
-        }
+        const [scansRemaining, hasSubscription, endDate] = await Promise.all([
+          getRemainingScans(),
+          hasActiveSubscription(),
+          getSubscriptionEndDate()
+        ]);
         
-        setSubscription(subData);
-        
-        // Get remaining free scans
-        const remainingFreeScans = await getRemainingFreeScans();
-        setRemainingScans(remainingFreeScans);
+        setRemainingScans(scansRemaining);
+        setIsSubscribed(hasSubscription);
+        setSubscriptionEndDate(endDate);
       } catch (error) {
-        console.error('Error fetching dashboard data:', error);
+        console.error('Error loading user data:', error);
       } finally {
-        setPageLoading(false);
+        setLoading(false);
       }
     };
 
-    fetchData();
-  }, [user]);
+    loadUserData();
+  }, [user, navigate, getRemainingScans, hasActiveSubscription, getSubscriptionEndDate]);
 
-  if (loading || pageLoading) {
+  if (loading) {
     return (
       <Layout>
-        <div className="flex justify-center items-center min-h-[60vh]">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        <div className="container mx-auto py-10">
+          <p className="text-center">Loading...</p>
         </div>
       </Layout>
     );
@@ -91,179 +56,87 @@ const Dashboard = () => {
 
   return (
     <Layout>
-      <div className="page-container">
-        <h1 className="text-3xl font-bold mb-8">Your Dashboard</h1>
-        
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-8">
-          {/* Subscription Status Card */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg font-semibold">Subscription Status</CardTitle>
-              <CardDescription>Current plan information</CardDescription>
+      <div className="container mx-auto py-10">
+        <div className="max-w-4xl mx-auto">
+          <h1 className="text-3xl font-bold mb-6">Dashboard</h1>
+          
+          {isSubscribed && (
+            <Alert className="mb-6 bg-green-50 dark:bg-green-950/30 border-green-200">
+              <Award className="h-4 w-4 text-green-500" />
+              <AlertTitle>Premium Account</AlertTitle>
+              <AlertDescription>
+                You have premium access with up to 15 scans!
+                {subscriptionEndDate && (
+                  <div className="mt-1">
+                    Your premium access expires on: <strong>{subscriptionEndDate}</strong>
+                  </div>
+                )}
+              </AlertDescription>
+            </Alert>
+          )}
+          
+          {!isSubscribed && remainingScans !== null && remainingScans <= 1 && (
+            <Alert className="mb-6 bg-amber-50 dark:bg-amber-950/30 border-amber-200">
+              <AlertTriangle className="h-4 w-4 text-amber-500" />
+              <AlertTitle>Running Low</AlertTitle>
+              <AlertDescription>
+                You have {remainingScans} {remainingScans === 1 ? 'scan' : 'scans'} remaining. Consider upgrading to Premium for 15 scans.
+                <div className="mt-2">
+                  <Button variant="outline" size="sm" onClick={() => navigate('/subscription')}>
+                    <CreditCard className="mr-2 h-4 w-4" />
+                    Upgrade Now
+                  </Button>
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
+          
+          <Card className="mb-8">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-2xl">Upload Resume</CardTitle>
+                  <CardDescription>Upload your resume for AI analysis</CardDescription>
+                </div>
+                <Badge variant={isSubscribed ? "default" : "outline"} className="ml-2">
+                  {remainingScans !== null ? `${remainingScans} scans remaining` : 'Loading...'}
+                </Badge>
+              </div>
             </CardHeader>
             <CardContent>
-              {subscription ? (
-                <div className="space-y-2">
-                  <div className="flex items-center text-sm">
-                    <CalendarDays className="mr-2 h-4 w-4 text-primary" />
-                    <span>
-                      Active until {new Date(subscription.end_date).toLocaleDateString()}
-                    </span>
-                  </div>
-                  <div className="text-sm">
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                      Premium
-                    </span>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <div className="flex items-center text-sm">
-                    <Clock className="mr-2 h-4 w-4 text-amber-500" />
-                    <span>
-                      {remainingScans > 0 
-                        ? `${remainingScans} free ${remainingScans === 1 ? 'scan' : 'scans'} remaining` 
-                        : 'Free scans used'}
-                    </span>
-                  </div>
-                  <div className="text-sm">
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                      Free Tier
-                    </span>
-                  </div>
-                </div>
-              )}
+              <UploadZone />
             </CardContent>
-            <CardFooter>
-              {!subscription && (
-                <Button variant="outline" asChild className="w-full">
-                  <Link to="/subscription">
-                    Upgrade to Premium
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Link>
+            <CardFooter className="flex justify-between border-t pt-6">
+              <p className="text-sm text-muted-foreground">
+                {isSubscribed 
+                  ? 'Premium users get 15 resume scans' 
+                  : 'Free users get 3 resume scans. Upgrade for more!'}
+              </p>
+              {!isSubscribed && (
+                <Button variant="outline" size="sm" onClick={() => navigate('/subscription')}>
+                  Upgrade
                 </Button>
               )}
             </CardFooter>
           </Card>
           
-          {/* Recent Activity Card */}
           <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg font-semibold">Recent Activity</CardTitle>
-              <CardDescription>Your latest resume scans</CardDescription>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <FileText className="mr-2 h-5 w-5" />
+                Recent Scans
+              </CardTitle>
+              <CardDescription>View your previously analyzed resumes</CardDescription>
             </CardHeader>
             <CardContent>
-              {scans.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No resumes scanned yet</p>
-              ) : (
-                <div className="space-y-3">
-                  {scans.slice(0, 3).map((scan) => (
-                    <div key={scan.id} className="flex items-start space-x-3">
-                      <FileText className="h-5 w-5 text-primary mt-0.5" />
-                      <div className="space-y-1">
-                        <p className="text-sm font-medium leading-none">{scan.file_name}</p>
-                        <div className="flex items-center">
-                          <BarChart className="h-3 w-3 mr-1 text-muted-foreground" />
-                          <span className="text-xs text-muted-foreground">Score: {scan.score}/100</span>
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          {formatDistanceToNow(new Date(scan.scan_date), { addSuffix: true })}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-            <CardFooter>
-              <Button variant="outline" asChild className="w-full">
-                <Link to="/">
-                  Analyze a New Resume
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Link>
-              </Button>
-            </CardFooter>
-          </Card>
-          
-          {/* Quick Actions Card */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg font-semibold">Quick Actions</CardTitle>
-              <CardDescription>Common tasks</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <Button variant="outline" asChild className="w-full justify-start">
-                <Link to="/">
-                  <FileText className="mr-2 h-4 w-4" />
-                  Upload a Resume
-                </Link>
-              </Button>
-              
-              <Button variant="outline" asChild className="w-full justify-start">
-                <Link to="/subscription">
-                  <CalendarDays className="mr-2 h-4 w-4" />
-                  Manage Subscription
-                </Link>
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-        
-        {/* All Resume Scans */}
-        <div className="mb-8">
-          <h2 className="text-xl font-bold mb-4">Resume History</h2>
-          
-          {scans.length === 0 ? (
-            <div className="text-center p-8 border rounded-lg bg-muted/10">
-              <FileText className="h-12 w-12 mx-auto text-muted-foreground" />
-              <h3 className="mt-4 text-lg font-medium">No resume scans yet</h3>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Upload your first resume to get detailed analysis and feedback.
+              {/* Recent scans would go here */}
+              <p className="text-center py-6 text-muted-foreground">
+                Your recently scanned resumes will appear here
               </p>
-              <Button className="mt-4" asChild>
-                <Link to="/">Analyze Resume</Link>
-              </Button>
-            </div>
-          ) : (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {scans.map((scan) => (
-                <Card key={scan.id}>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-base font-medium">{scan.file_name}</CardTitle>
-                    <CardDescription>
-                      {new Date(scan.scan_date).toLocaleDateString()}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center space-x-2">
-                      <div className="h-2 flex-1 bg-muted rounded-full overflow-hidden">
-                        <div 
-                          className={`h-full ${
-                            scan.score >= 80 ? 'bg-green-500' : 
-                            scan.score >= 60 ? 'bg-amber-500' : 'bg-red-500'
-                          }`}
-                          style={{ width: `${scan.score}%` }}
-                        ></div>
-                      </div>
-                      <span className="text-sm font-medium">{scan.score}/100</span>
-                    </div>
-                  </CardContent>
-                  <CardFooter>
-                    <Button variant="outline" asChild className="w-full">
-                      <Link to={`/analysis?id=${scan.id}`}>
-                        View Analysis
-                        <ArrowRight className="ml-2 h-4 w-4" />
-                      </Link>
-                    </Button>
-                  </CardFooter>
-                </Card>
-              ))}
-            </div>
-          )}
+            </CardContent>
+          </Card>
         </div>
       </div>
     </Layout>
   );
-};
-
-export default Dashboard;
+}

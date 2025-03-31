@@ -5,7 +5,8 @@ import { Toaster } from 'sonner';
 import './App.css';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import WelcomePopup from './components/WelcomePopup';
-import { subscribeToPaymentUpdates } from './integrations/supabase/client';
+import { subscribeToPaymentUpdates, subscribeToSubscriptionUpdates } from './integrations/supabase/client';
+import { toast } from 'sonner';
 
 // Import pages
 const Index = lazy(() => import('./pages/Index'));
@@ -20,7 +21,7 @@ const Subscription = lazy(() => import('./pages/Subscription'));
 const PaymentForm = lazy(() => import('./pages/PaymentForm'));
 
 function AppContent() {
-  const { user, hasActiveSubscription } = useAuth();
+  const { user, hasActiveSubscription, getSubscriptionEndDate } = useAuth();
   const [showPremiumWelcome, setShowPremiumWelcome] = useState(false);
   const [prevSubscriptionStatus, setPrevSubscriptionStatus] = useState(false);
 
@@ -40,7 +41,7 @@ function AppContent() {
     if (!user) return;
     
     // Subscribe to payment updates
-    const subscription = subscribeToPaymentUpdates(user.id, async () => {
+    const paymentSubscription = subscribeToPaymentUpdates(user.id, async () => {
       const isSubscribed = await hasActiveSubscription();
       
       // If user just got premium access, show the premium welcome
@@ -48,13 +49,31 @@ function AppContent() {
         setShowPremiumWelcome(true);
         localStorage.removeItem('hasSeenPremiumWelcome'); // Force show the welcome popup
         setPrevSubscriptionStatus(true);
+        
+        // Show subscription end date
+        const endDate = await getSubscriptionEndDate();
+        if (endDate) {
+          toast.success(`Premium access activated until ${endDate}!`);
+        } else {
+          toast.success('Premium access activated!');
+        }
+      }
+    });
+    
+    // Subscribe to subscription updates for notifications
+    const subscriptionSubscription = subscribeToSubscriptionUpdates(user.id, async (payload) => {
+      const endDate = await getSubscriptionEndDate();
+      
+      if (endDate) {
+        toast.info(`Your subscription is active until ${endDate}`);
       }
     });
     
     return () => {
-      subscription.unsubscribe();
+      paymentSubscription.unsubscribe();
+      subscriptionSubscription.unsubscribe();
     };
-  }, [user, hasActiveSubscription, prevSubscriptionStatus]);
+  }, [user, hasActiveSubscription, prevSubscriptionStatus, getSubscriptionEndDate]);
 
   return (
     <>

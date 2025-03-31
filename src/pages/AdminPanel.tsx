@@ -30,7 +30,8 @@ import {
   Search,
   RefreshCw,
   CheckCircle2,
-  FileText
+  FileText,
+  Phone
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
@@ -38,11 +39,10 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 interface PaymentRecord {
   id: string;
-  mpesa_code: string;
+  email: string;
+  phone_number: string;
   payment_date: string;
   user_id: string;
-  user_email?: string;
-  user_name?: string;
   verified: boolean;
 }
 
@@ -108,38 +108,7 @@ const AdminPanel = () => {
         .order('payment_date', { ascending: false });
 
       if (paymentError) throw paymentError;
-
-      // Fetch user details for each payment
-      const paymentsWithUserInfo = await Promise.all(
-        (paymentData || []).map(async (payment) => {
-          // Get user profile
-          const { data: userData, error: userError } = await supabase
-            .from('profiles')
-            .select('full_name')
-            .eq('id', payment.user_id)
-            .single();
-
-          if (userError) {
-            console.error('Error fetching user data:', userError);
-            return {
-              ...payment,
-              user_name: 'Unknown',
-              user_email: 'Unknown',
-            };
-          }
-
-          // Get user email from profiles (we're storing email in full_name field)
-          const userEmail = userData?.full_name || 'Unknown';
-          
-          return {
-            ...payment,
-            user_name: userEmail,
-            user_email: userEmail,
-          };
-        })
-      );
-
-      setPayments(paymentsWithUserInfo);
+      setPayments(paymentData || []);
     } catch (error) {
       console.error('Error loading payments:', error);
       toast.error('Failed to load payment records');
@@ -171,7 +140,6 @@ const AdminPanel = () => {
             .select('*')
             .eq('user_id', profile.id)
             .eq('active', true)
-            .gt('end_date', new Date().toISOString())
             .single();
 
           // Get scan count
@@ -325,7 +293,7 @@ const AdminPanel = () => {
                 Pending Payments
               </CardTitle>
               <CardDescription>
-                Review and verify pending M-Pesa payments
+                Review and verify pending payments
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -342,7 +310,7 @@ const AdminPanel = () => {
                     <TableRow>
                       <TableHead>Date</TableHead>
                       <TableHead>Email</TableHead>
-                      <TableHead>M-Pesa Code</TableHead>
+                      <TableHead>Phone</TableHead>
                       <TableHead className="text-right">Action</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -352,15 +320,18 @@ const AdminPanel = () => {
                         <TableCell>
                           {new Date(payment.payment_date).toLocaleDateString()}
                         </TableCell>
-                        <TableCell>{payment.user_email}</TableCell>
-                        <TableCell className="font-mono">
-                          {payment.mpesa_code}
+                        <TableCell>{payment.email}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center">
+                            <Phone className="h-3 w-3 mr-1 text-muted-foreground" />
+                            {payment.phone_number}
+                          </div>
                         </TableCell>
                         <TableCell className="text-right">
                           <Button
                             size="sm"
                             onClick={() => {
-                              setUserEmail(payment.user_email || '');
+                              setUserEmail(payment.email || '');
                             }}
                           >
                             <CheckCircle2 className="h-4 w-4 mr-1" />

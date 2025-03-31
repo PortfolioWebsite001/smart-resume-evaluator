@@ -23,16 +23,14 @@ import { CreditCard, Info, AlertCircle, Loader2 } from 'lucide-react';
 import Layout from '@/components/Layout';
 
 const PaymentForm = () => {
-  const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [mpesaCode, setMpesaCode] = useState('');
   const [loading, setLoading] = useState(false);
   const { user, submitPayment } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    // If user is logged in, pre-fill and lock the email
+    // If user is logged in, pre-fill the email
     if (user && user.email) {
       setEmail(user.email);
     }
@@ -52,16 +50,16 @@ const PaymentForm = () => {
       return;
     }
     
-    if (!fullName || !phoneNumber || !mpesaCode) {
-      toast.error('All fields are required');
+    if (!phoneNumber) {
+      toast.error('Phone number is required');
       return;
     }
     
     setLoading(true);
     
     try {
-      await submitPayment(fullName, email, phoneNumber, mpesaCode);
-      toast.success('Payment submitted successfully! Waiting for verification.');
+      await submitPayment(email, phoneNumber);
+      toast.success('Payment information submitted successfully! Waiting for verification.');
       navigate('/dashboard');
     } catch (error) {
       console.error('Payment submission error:', error);
@@ -86,7 +84,7 @@ const PaymentForm = () => {
                 <CardHeader>
                   <CardTitle>Payment Details</CardTitle>
                   <CardDescription>
-                    Submit your M-Pesa payment details below
+                    Submit your payment details below
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -102,27 +100,13 @@ const PaymentForm = () => {
                       <AlertCircle className="h-4 w-4" />
                       <AlertTitle>Important</AlertTitle>
                       <AlertDescription>
-                        You are registered with: {user.email}. We'll use this email for verification.
+                        Please make your payment first, then submit your details for verification.
                       </AlertDescription>
                     </Alert>
                   )}
                   
                   <form onSubmit={handleSubmit} className="space-y-6">
                     <div className="space-y-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="fullName">Full Name</Label>
-                        <Input
-                          id="fullName"
-                          placeholder="Enter your full name"
-                          value={fullName}
-                          onChange={(e) => setFullName(e.target.value)}
-                          required
-                        />
-                        <p className="text-sm text-muted-foreground">
-                          Must match the name on your M-Pesa account
-                        </p>
-                      </div>
-                      
                       <div className="space-y-2">
                         <Label htmlFor="email">Email Address</Label>
                         <div className="relative">
@@ -150,20 +134,8 @@ const PaymentForm = () => {
                           onChange={(e) => setPhoneNumber(e.target.value)}
                           required
                         />
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <Label htmlFor="mpesaCode">M-Pesa Transaction Code</Label>
-                        <Input
-                          id="mpesaCode"
-                          placeholder="e.g., QWE1234XYZ"
-                          value={mpesaCode}
-                          onChange={(e) => setMpesaCode(e.target.value.toUpperCase())}
-                          className="uppercase"
-                          required
-                        />
                         <p className="text-sm text-muted-foreground">
-                          Enter the confirmation code from your M-Pesa message
+                          The phone number you used for payment
                         </p>
                       </div>
                     </div>
@@ -171,7 +143,7 @@ const PaymentForm = () => {
                     <Button 
                       type="submit" 
                       className="w-full" 
-                      disabled={loading || !fullName || !email || !phoneNumber || !mpesaCode}
+                      disabled={loading || !email || !phoneNumber}
                     >
                       {loading ? (
                         <>
@@ -210,20 +182,19 @@ const PaymentForm = () => {
                       <ol className="list-decimal list-inside space-y-2 text-sm">
                         <li>Go to M-Pesa on your phone</li>
                         <li>Select "Lipa na M-Pesa"</li>
-                        <li>Select "Pay Bill"</li>
-                        <li>Enter Business Number: <span className="font-mono font-bold">123456</span></li>
-                        <li>Enter Account Number: <span className="font-mono font-bold">RESUME</span></li>
+                        <li>Select "Buy Goods and Services"</li>
+                        <li>Enter Till Number: <span className="font-mono font-bold">4097548</span></li>
                         <li>Enter Amount: <span className="font-bold">KES 150</span></li>
                         <li>Enter your M-Pesa PIN and confirm</li>
-                        <li>You will receive a confirmation SMS with a transaction code</li>
-                        <li>Enter that code in the form</li>
+                        <li>After payment, submit your email and phone number in this form</li>
                       </ol>
                     </div>
                     
                     <div className="pt-2">
                       <h3 className="font-medium mb-1">After Submission:</h3>
                       <p className="text-sm">
-                        Once you submit, our admin will verify your payment and activate your premium access with 15 scans.
+                        Our admin will verify your payment and activate your premium access with 15 scans.
+                        You'll receive a notification with your subscription end date.
                       </p>
                     </div>
                   </div>

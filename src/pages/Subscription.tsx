@@ -53,7 +53,12 @@ const Subscription = () => {
               </li>
             </ul>
             
-            <div className="mt-8">
+            <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-800 rounded-md text-center">
+              <p className="font-medium">Pay to <span className="text-primary">BuyGoods Till 4097548</span></p>
+              <p className="text-sm text-muted-foreground mt-1">Via M-Pesa, then submit your details for verification</p>
+            </div>
+            
+            <div className="mt-6">
               <Button 
                 className="w-full text-lg py-6 flex items-center justify-center" 
                 onClick={() => navigate('/payment')}

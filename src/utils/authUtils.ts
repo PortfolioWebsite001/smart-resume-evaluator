@@ -16,7 +16,7 @@ export const calculateRemainingFreeScans = async (userId: string, supabaseClient
       .from('subscriptions')
       .select('*')
       .eq('user_id', userId)
-      .eq('status', 'active')
+      .eq('active', true)
       .single();
       
     if (subscriptionData) {
@@ -41,5 +41,35 @@ export const calculateRemainingFreeScans = async (userId: string, supabaseClient
   } catch (error) {
     console.error("Error calculating remaining free scans:", error);
     return 0;
+  }
+};
+
+/**
+ * Calculate subscription end date in human-readable format
+ * @param userId User ID to check
+ * @param supabaseClient Supabase client instance
+ * @returns End date string or null if no subscription
+ */
+export const getSubscriptionEndDate = async (userId: string, supabaseClient: any): Promise<string | null> => {
+  try {
+    const { data, error } = await supabaseClient
+      .from('subscriptions')
+      .select('end_date')
+      .eq('user_id', userId)
+      .eq('active', true)
+      .single();
+      
+    if (error || !data) return null;
+    
+    // Format the date
+    const endDate = new Date(data.end_date);
+    return endDate.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
+  } catch (error) {
+    console.error("Error getting subscription end date:", error);
+    return null;
   }
 };

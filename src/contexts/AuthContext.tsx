@@ -4,6 +4,7 @@ import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { calculateRemainingFreeScans, getSubscriptionEndDate } from '@/utils/authUtils';
 
 interface AuthContextType {
   session: Session | null;
@@ -13,9 +14,10 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   getRemainingScans: () => Promise<number>;
+  getSubscriptionEndDate: () => Promise<string | null>;
   hasActiveSubscription: () => Promise<boolean>;
   verifyAdminPin: (pin: string) => Promise<boolean>;
-  submitPayment: (fullName: string, email: string, phoneNumber: string, mpesaCode: string) => Promise<void>;
+  submitPayment: (email: string, phoneNumber: string) => Promise<void>;
   verifyPayment: (userEmail: string) => Promise<void>;
 }
 
@@ -102,36 +104,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function getRemainingScans() {
     if (!user) return 0;
-    
-    try {
-      // Check if user has an active subscription first
-      const hasSubscription = await hasActiveSubscription();
-      
-      if (hasSubscription) {
-        // If user has subscription, check how many of the 15 scans they've used
-        const { data, error, count } = await supabase
-          .from('resume_scans')
-          .select('*', { count: 'exact' })
-          .eq('user_id', user.id);
-          
-        if (error) throw error;
-        
-        return Math.max(0, 15 - (count || 0));
-      } else {
-        // If no subscription, check free scans (3)
-        const { data, error, count } = await supabase
-          .from('resume_scans')
-          .select('*', { count: 'exact' })
-          .eq('user_id', user.id);
-          
-        if (error) throw error;
-        
-        return Math.max(0, 3 - (count || 0));
-      }
-    } catch (error) {
-      console.error('Error checking scans:', error);
-      return 0;
-    }
+    return calculateRemainingFreeScans(user.id, supabase);
+  }
+
+  async function getSubscriptionEndDateForUser() {
+    if (!user) return null;
+    return getSubscriptionEndDate(user.id, supabase);
   }
 
   async function hasActiveSubscription() {
@@ -143,16 +121,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .select('*')
         .eq('user_id', user.id)
         .eq('active', true)
-        .gt('end_date', new Date().toISOString())
         .single();
         
-      if (error && error.code !== 'PGRST116') {
-        throw error;
-      }
-      
+      if (error) return false;
       return !!data;
     } catch (error) {
-      console.error('Error checking subscription:', error);
+      console.error("Error checking subscription:", error);
       return false;
     }
   }
@@ -173,35 +147,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  async function submitPayment(fullName: string, email: string, phoneNumber: string, mpesaCode: string) {
+  async function submitPayment(email: string, phoneNumber: string) {
     if (!user) {
       toast.error('You must be logged in to submit a payment');
       return;
     }
     
     try {
-      // Store the email and phone number in the profile
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({ 
-          phone_number: phoneNumber,
-          full_name: email  // Use email in full_name for identification
-        })
-        .eq('id', user.id);
-        
-      if (profileError) throw profileError;
-      
       // Store the payment record
       const { error: paymentError } = await supabase
         .from('payment_records')
         .insert({
           user_id: user.id,
-          mpesa_code: mpesaCode,
+          mpesa_code: 'MANUAL_VERIFICATION',
+          email: email,
+          phone_number: phoneNumber
         });
         
       if (paymentError) throw paymentError;
       
-      toast.success('Payment submitted successfully! Waiting for verification.');
+      toast.success('Payment information submitted successfully! Waiting for verification.');
     } catch (error: any) {
       console.error('Error submitting payment:', error);
       toast.error(error.message || 'Failed to submit payment');
@@ -211,86 +176,70 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function verifyPayment(userEmail: string) {
     try {
-      // Find the user by email (stored in full_name field for matching payment records)
+      // Find the user by email
       const { data: userData, error: userError } = await supabase
-        .from('profiles')
+        .from('auth')
         .select('id')
-        .eq('full_name', userEmail)
+        .eq('email', userEmail)
         .single();
     
+      // If user not found by email, try to find by payment record email
       if (userError || !userData) {
-        toast.error('User not found with this email.');
-        throw new Error('User not found with this email.');
-      }
+        const { data: paymentData, error: paymentError } = await supabase
+          .from('payment_records')
+          .select('user_id')
+          .eq('email', userEmail)
+          .eq('verified', false)
+          .single();
       
-      // Check for pending payment
-      const { data: paymentData, error: paymentError } = await supabase
-        .from('payment_records')
-        .select('*')
-        .eq('user_id', userData.id)
-        .eq('verified', false)
-        .order('payment_date', { ascending: false })
-        .limit(1);
-    
-      if (paymentError || !paymentData || paymentData.length === 0) {
-        toast.error('No pending payment found for this user.');
-        throw new Error('No pending payment found for this user.');
+        if (paymentError || !paymentData) {
+          toast.error('No pending payment found for this email address.');
+          throw new Error('User not found with this email.');
+        }
+        
+        // Use the user ID from the payment record
+        userData.id = paymentData.user_id;
       }
-      
-      const paymentId = paymentData[0].id;
       
       // Get current admin user
       const currentUser = await supabase.auth.getUser();
       const adminEmail = currentUser.data.user?.email || 'Unknown Admin';
       
       // Mark payment as verified
-      const { error: updateError } = await supabase
+      await supabase
         .from('payment_records')
         .update({
           verified: true,
           verified_by: adminEmail,
           verified_at: new Date().toISOString()
         })
-        .eq('id', paymentId);
-    
-      if (updateError) {
-        toast.error('Failed to verify payment: ' + updateError.message);
-        throw updateError;
-      }
+        .eq('user_id', userData.id)
+        .eq('verified', false);
+      
+      // Calculate end date (7 days from now)
+      const oneWeekFromNow = new Date();
+      oneWeekFromNow.setDate(oneWeekFromNow.getDate() + 7);
       
       // Check if a subscription already exists for this user
-      const { data: existingSubscription, error: subscriptionCheckError } = await supabase
+      const { data: existingSubscription } = await supabase
         .from('subscriptions')
         .select('*')
         .eq('user_id', userData.id)
         .eq('active', true)
         .maybeSingle();
-      
-      if (subscriptionCheckError) {
-        console.error('Error checking existing subscription:', subscriptionCheckError);
-      }
 
-      // Calculate end date (7 days from now)
-      const oneWeekFromNow = new Date();
-      oneWeekFromNow.setDate(oneWeekFromNow.getDate() + 7);
-      
       if (existingSubscription) {
         // Update existing subscription
-        const { error: updateSubscriptionError } = await supabase
+        await supabase
           .from('subscriptions')
           .update({
             end_date: oneWeekFromNow.toISOString(),
             active: true
           })
           .eq('id', existingSubscription.id);
-      
-        if (updateSubscriptionError) {
-          toast.error('Failed to update subscription: ' + updateSubscriptionError.message);
-          throw updateSubscriptionError;
-        }
       } else {
         // Create new subscription
-        const { error: subscriptionError } = await supabase
+        await supabase
           .from('subscriptions')
           .insert({
             user_id: userData.id,
@@ -298,12 +247,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             end_date: oneWeekFromNow.toISOString(),
             active: true
           });
-      
-        if (subscriptionError) {
-          console.error('Failed to create subscription:', subscriptionError);
-          toast.error('Failed to create subscription: ' + subscriptionError.message);
-          throw subscriptionError;
-        }
       }
       
       // Log the admin action
@@ -314,13 +257,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           admin_email: adminEmail,
           target_user_email: userEmail,
           details: {
-            payment_id: paymentId,
             verified_at: new Date().toISOString()
           }
         });
       
       toast.success('Payment verified and subscription activated successfully! The user now has access to 15 scans.');
-      return;
     } catch (error: any) {
       console.error('Error verifying payment:', error);
       toast.error('An error occurred while verifying payment: ' + error.message);
@@ -336,6 +277,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signIn,
     signOut,
     getRemainingScans,
+    getSubscriptionEndDate: getSubscriptionEndDateForUser,
     hasActiveSubscription,
     verifyAdminPin,
     submitPayment,
