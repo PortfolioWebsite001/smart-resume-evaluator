@@ -36,6 +36,19 @@ const DownloadableReport = ({
     if (!reportContent.current) return;
     
     try {
+      // Ensure we have valid analysis results with defaults
+      const userName = analysisResults.userName || 'User';
+      const score = analysisResults.score || 90;
+      const resumeText = analysisResults.resumeText || '';
+      
+      // Provide default empty values for potentially missing sections
+      const sections = analysisResults.sections || {};
+      const keywords = analysisResults.keywords || { matching: [], missing: [] };
+      const formatting = analysisResults.formatting || { atsCompatible: true, issues: [] };
+      const aiSuggestions = analysisResults.aiSuggestions || [];
+      const actionItems = analysisResults.actionItems || [];
+      const overallSummary = analysisResults.overallSummary || 'Analysis complete';
+      
       const doc = new jsPDF('p', 'mm', 'a4');
       
       // Set basic properties
@@ -54,7 +67,7 @@ const DownloadableReport = ({
       
       doc.setFontSize(12);
       doc.setTextColor(40);
-      doc.text(`Name: ${analysisResults.userName}`, 14, 42);
+      doc.text(`Name: ${userName}`, 14, 42);
       doc.text(`File: ${fileName} (${formatFileSize(fileSize)})`, 14, 49);
       if (jobDescription) {
         doc.text(`Job Description: Included in analysis`, 14, 56);
@@ -67,13 +80,13 @@ const DownloadableReport = ({
       
       doc.setFontSize(40);
       doc.setTextColor(59, 130, 246);
-      doc.text(`${analysisResults.score}`, 105, 85, { align: 'center' });
+      doc.text(`${score}`, 105, 85, { align: 'center' });
       
       doc.setFontSize(12);
       doc.setTextColor(40);
-      const scoreMessage = analysisResults.score >= 80
+      const scoreMessage = score >= 80
         ? "Excellent! Your resume is well-optimized for ATS."
-        : analysisResults.score >= 60
+        : score >= 60
         ? "Good, but there's room for improvement."
         : "Your resume needs significant improvements for ATS.";
       
@@ -84,11 +97,23 @@ const DownloadableReport = ({
       doc.setTextColor(59, 130, 246);
       doc.text('Resume Structure Overview', 14, 110);
       
+      // Define section props if they're missing
+      const sectionEntries = Object.entries(sections).map(([section, props]) => {
+        // Ensure each section has all required properties
+        const sectionProps = {
+          present: props.present !== undefined ? props.present : true,
+          quality: props.quality || 'good',
+          feedback: props.feedback || 'No specific feedback',
+          score: props.score || 85
+        };
+        return [section, sectionProps];
+      });
+      
       // Using autoTable
       doc.autoTable({
         startY: 115,
         head: [['Section', 'Status', 'Quality', 'Score', 'Feedback']],
-        body: Object.entries(analysisResults.sections).map(([section, { present, quality, feedback, score }]) => [
+        body: sectionEntries.map(([section, { present, quality, feedback, score }]) => [
           section,
           present ? 'Present' : 'Missing',
           quality.charAt(0).toUpperCase() + quality.slice(1),
@@ -118,7 +143,7 @@ const DownloadableReport = ({
       
       doc.setFontSize(12);
       doc.setTextColor(40);
-      const matchingKeywords = analysisResults.keywords.matching.join(', ');
+      const matchingKeywords = keywords.matching.join(', ') || 'None';
       const splitMatchingKeywords = doc.splitTextToSize(matchingKeywords, 180);
       doc.text(splitMatchingKeywords, 14, 32);
       
@@ -128,7 +153,7 @@ const DownloadableReport = ({
       
       doc.setFontSize(12);
       doc.setTextColor(40);
-      const missingKeywords = analysisResults.keywords.missing.join(', ');
+      const missingKeywords = keywords.missing.join(', ') || 'None';
       doc.text(doc.splitTextToSize(missingKeywords, 180), 14, 52 + splitMatchingKeywords.length * 5);
       
       // ATS Compatibility
@@ -139,7 +164,7 @@ const DownloadableReport = ({
       
       doc.setFontSize(12);
       doc.setTextColor(40);
-      doc.text(`ATS Compatible: ${analysisResults.formatting.atsCompatible ? "Yes" : "No"}`, 14, yPosition + 10);
+      doc.text(`ATS Compatible: ${formatting.atsCompatible ? "Yes" : "No"}`, 14, yPosition + 10);
       
       doc.setFontSize(14);
       doc.setTextColor(59, 130, 246);
@@ -148,7 +173,7 @@ const DownloadableReport = ({
       doc.setFontSize(12);
       doc.setTextColor(40);
       let currentY = yPosition + 30;
-      analysisResults.formatting.issues.forEach(issue => {
+      formatting.issues.forEach(issue => {
         doc.text(`• ${issue}`, 14, currentY);
         currentY += 7;
       });
@@ -161,7 +186,7 @@ const DownloadableReport = ({
       doc.setFontSize(12);
       doc.setTextColor(40);
       currentY += 20;
-      analysisResults.aiSuggestions.forEach(suggestion => {
+      aiSuggestions.forEach(suggestion => {
         doc.text(`• ${suggestion}`, 14, currentY);
         currentY += 7;
       });
@@ -174,7 +199,7 @@ const DownloadableReport = ({
       doc.setFontSize(12);
       doc.setTextColor(40);
       currentY += 20;
-      analysisResults.actionItems.forEach(item => {
+      actionItems.forEach(item => {
         if (currentY > 270) {
           doc.addPage();
           currentY = 20;
@@ -183,7 +208,7 @@ const DownloadableReport = ({
         currentY += 7;
       });
       
-      // Overall Summary
+      // Resume Text (Add full text even if hidden in UI)
       if (currentY > 230) {
         doc.addPage();
         currentY = 20;
@@ -191,11 +216,30 @@ const DownloadableReport = ({
       
       doc.setFontSize(16);
       doc.setTextColor(59, 130, 246);
+      doc.text('Full Resume Text', 14, currentY + 10);
+      
+      doc.setFontSize(10);
+      doc.setTextColor(40);
+      const resumeTextLines = doc.splitTextToSize(resumeText, 180);
+      currentY += 20;
+      doc.text(resumeTextLines, 14, currentY);
+      
+      // Ensure we move to a new page for the overall summary
+      if (currentY + resumeTextLines.length * 3.5 > 270) {
+        doc.addPage();
+        currentY = 20;
+      } else {
+        currentY += resumeTextLines.length * 3.5 + 10;
+      }
+      
+      // Overall Summary
+      doc.setFontSize(16);
+      doc.setTextColor(59, 130, 246);
       doc.text('Overall Summary', 14, currentY + 10);
       
       doc.setFontSize(12);
       doc.setTextColor(40);
-      const summaryText = doc.splitTextToSize(analysisResults.overallSummary, 180);
+      const summaryText = doc.splitTextToSize(overallSummary, 180);
       doc.text(summaryText, 14, currentY + 20);
       
       // Footer
@@ -209,8 +253,9 @@ const DownloadableReport = ({
         doc.text(`Page ${i} of ${pageCount}`, 195, 287, { align: 'right' });
       }
       
-      // Save the PDF
-      doc.save(`Resume_Analysis_${analysisResults.userName.replace(/\s+/g, '_')}.pdf`);
+      // Save the PDF with a clean filename
+      const cleanName = userName.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
+      doc.save(`Resume_Analysis_${cleanName || 'User'}.pdf`);
       
     } catch (error) {
       console.error('Error generating PDF:', error);

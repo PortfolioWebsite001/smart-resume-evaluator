@@ -1,6 +1,5 @@
-
 import { useState, useRef, DragEvent, ChangeEvent } from "react";
-import { FileUp, File, X, Loader2, Scan } from "lucide-react";
+import { FileUp, File, X, Loader2, Scan, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
@@ -8,6 +7,7 @@ import { analyzeResume } from "@/utils/geminiAPI";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link } from "react-router-dom";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface UploadZoneProps {
   onFileUpload: (file: File) => void;
@@ -22,7 +22,7 @@ const UploadZone = ({ onFileUpload }: UploadZoneProps) => {
   const [jobDescription, setJobDescription] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, hasRemainingScans, incrementScansUsed } = useAuth();
 
   const handleDragOver = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -44,6 +44,11 @@ const UploadZone = ({ onFileUpload }: UploadZoneProps) => {
       return;
     }
     
+    if (!hasRemainingScans) {
+      toast.error("You have reached your scan limit");
+      return;
+    }
+    
     const files = e.dataTransfer.files;
     if (files.length) {
       validateAndSetFile(files[0]);
@@ -54,6 +59,11 @@ const UploadZone = ({ onFileUpload }: UploadZoneProps) => {
     if (!user) {
       toast.error("Please sign in to analyze your resume");
       navigate("/login");
+      return;
+    }
+    
+    if (!hasRemainingScans) {
+      toast.error("You have reached your scan limit");
       return;
     }
     
@@ -108,6 +118,11 @@ const UploadZone = ({ onFileUpload }: UploadZoneProps) => {
       navigate("/login");
       return;
     }
+    
+    if (!hasRemainingScans) {
+      toast.error("You have reached your scan limit");
+      return;
+    }
 
     setIsLoading(true);
     
@@ -130,6 +145,8 @@ const UploadZone = ({ onFileUpload }: UploadZoneProps) => {
         .single();
       
       if (error) throw error;
+      
+      incrementScansUsed();
       
       onFileUpload(selectedFile);
       
@@ -156,7 +173,6 @@ const UploadZone = ({ onFileUpload }: UploadZoneProps) => {
     }
   };
 
-  // Redirect to login if not authenticated
   if (!user) {
     return (
       <div className="w-full max-w-2xl mx-auto space-y-6">
@@ -173,6 +189,26 @@ const UploadZone = ({ onFileUpload }: UploadZoneProps) => {
               <Link to="/login">Sign In</Link>
             </Button>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!hasRemainingScans) {
+    return (
+      <div className="w-full max-w-2xl mx-auto space-y-6">
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            You have reached your scan limit of 1 scan per account.
+          </AlertDescription>
+        </Alert>
+        
+        <div className="bg-muted/30 border rounded-lg p-6 text-center">
+          <h3 className="text-xl font-semibold mb-2">Scan Limit Reached</h3>
+          <p className="text-muted-foreground mb-4">
+            You've used your free scan. You can still access your existing analysis.
+          </p>
         </div>
       </div>
     );

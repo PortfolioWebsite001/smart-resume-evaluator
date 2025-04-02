@@ -9,7 +9,8 @@ import SectionProgress from "@/components/SectionProgress";
 import { Button } from "@/components/ui/button";
 import { 
   ArrowLeft,
-  AlertCircle
+  AlertCircle,
+  Loader2
 } from "lucide-react";
 import { ResumeAnalysisResult } from "@/utils/geminiAPI";
 import { useAuth } from "@/contexts/AuthContext";
@@ -37,7 +38,7 @@ const Analysis = () => {
 
   useEffect(() => {
     const loadData = async () => {
-      if (location.state) {
+      if (location.state && location.state.analysisResults) {
         console.log("Using location state data", location.state);
         setAnalysisData(location.state);
         return;
@@ -82,6 +83,7 @@ const Analysis = () => {
               ? JSON.parse(data.scan_results) 
               : data.scan_results;
               
+            // Ensure required fields exist
             if (!parsedResults.resumeText) {
               parsedResults.resumeText = '';
               console.log("Resume text was missing, set to empty string");
@@ -91,6 +93,20 @@ const Analysis = () => {
               parsedResults.userName = 'User';
               console.log("Username was missing, set to 'User'");
             }
+            
+            // Ensure score is in 90-95 range
+            if (parsedResults.score < 90 || parsedResults.score > 95) {
+              parsedResults.score = Math.min(Math.max(90, parsedResults.score), 95);
+              console.log("Adjusted score to be in range 90-95:", parsedResults.score);
+            }
+            
+            // Ensure all other required properties exist
+            if (!parsedResults.sections) parsedResults.sections = {};
+            if (!parsedResults.keywords) parsedResults.keywords = { matching: [], missing: [] };
+            if (!parsedResults.formatting) parsedResults.formatting = { atsCompatible: true, issues: [] };
+            if (!parsedResults.aiSuggestions) parsedResults.aiSuggestions = [];
+            if (!parsedResults.actionItems) parsedResults.actionItems = [];
+            if (!parsedResults.overallSummary) parsedResults.overallSummary = 'Resume analysis complete.';
             
           } catch (e) {
             console.error("Error parsing scan results:", e);
@@ -147,8 +163,9 @@ const Analysis = () => {
   if (loading) {
     return (
       <Layout>
-        <div className="flex justify-center items-center min-h-[60vh]">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        <div className="flex justify-center items-center min-h-[60vh] flex-col space-y-4">
+          <Loader2 className="h-12 w-12 animate-spin text-primary" />
+          <p className="text-muted-foreground">Loading your analysis results...</p>
         </div>
       </Layout>
     );
@@ -190,7 +207,12 @@ const Analysis = () => {
     );
   }
 
-  const { userName = 'User', resumeText = '', score = 0 } = analysisData.analysisResults;
+  // Ensure score is in 90-95 range
+  if (analysisData.analysisResults.score < 90 || analysisData.analysisResults.score > 95) {
+    analysisData.analysisResults.score = Math.min(Math.max(90, analysisData.analysisResults.score), 95);
+  }
+
+  const { userName = 'User', resumeText = '', score = 92 } = analysisData.analysisResults;
 
   return (
     <Layout>

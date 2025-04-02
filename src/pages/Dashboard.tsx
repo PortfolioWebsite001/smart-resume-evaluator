@@ -7,14 +7,14 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import UploadZone from '@/components/UploadZone';
-import { FileText, Award, FileCheck, Clock } from 'lucide-react';
+import { FileText, Award, FileCheck, Clock, Info } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { formatFileSize } from '@/utils/fileUtils';
 
 export default function Dashboard() {
-  const { user } = useAuth();
+  const { user, scansUsed, hasRemainingScans } = useAuth();
   const [loading, setLoading] = useState(true);
   const [recentScans, setRecentScans] = useState<any[]>([]);
   const [fetchingScans, setFetchingScans] = useState(false);
@@ -81,11 +81,12 @@ export default function Dashboard() {
         <div className="max-w-4xl mx-auto">
           <h1 className="text-3xl font-bold mb-6">Dashboard</h1>
           
-          <Alert className="mb-6 bg-green-50 dark:bg-green-950/30 border-green-200">
-            <Award className="h-4 w-4 text-green-500" />
-            <AlertTitle>Free Resume Analysis</AlertTitle>
+          <Alert className="mb-6 bg-blue-50 dark:bg-blue-950/30 border-blue-200">
+            <Info className="h-4 w-4 text-blue-500" />
+            <AlertTitle>Scan Limit</AlertTitle>
             <AlertDescription>
-              You have unlimited access to our premium resume analysis tools!
+              You have used {scansUsed} out of 1 resume scans.
+              {!hasRemainingScans && " You have reached your scan limit."}
             </AlertDescription>
           </Alert>
           
@@ -96,8 +97,8 @@ export default function Dashboard() {
                   <CardTitle className="text-2xl">Upload Resume</CardTitle>
                   <CardDescription>Upload your resume for AI analysis</CardDescription>
                 </div>
-                <Badge variant="outline" className="ml-2">
-                  Unlimited scans
+                <Badge variant="outline" className={hasRemainingScans ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}>
+                  {hasRemainingScans ? "Scans available: 1" : "No scans left"}
                 </Badge>
               </div>
             </CardHeader>
@@ -106,7 +107,9 @@ export default function Dashboard() {
             </CardContent>
             <CardFooter className="flex justify-between border-t pt-6">
               <p className="text-sm text-muted-foreground">
-                Scan as many resumes as you need to perfect your applications!
+                {hasRemainingScans 
+                  ? "Upload your resume to get detailed AI analysis." 
+                  : "You have used all your available scans."}
               </p>
             </CardFooter>
           </Card>

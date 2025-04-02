@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -9,6 +8,9 @@ interface AuthContextType {
   session: Session | null;
   user: User | null;
   loading: boolean;
+  scansUsed: number;
+  hasRemainingScans: boolean;
+  incrementScansUsed: () => void;
   signUp: (fullName: string, email: string, password: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -21,7 +23,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [scansUsed, setScansUsed] = useState(0);
   const navigate = useNavigate();
+
+  const MAX_FREE_SCANS = 1;
+  const hasRemainingScans = scansUsed < MAX_FREE_SCANS;
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -41,6 +47,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       subscription.unsubscribe();
     };
   }, []);
+
+  useEffect(() => {
+    if (user) {
+      fetchUserScans(user.id);
+    } else {
+      setScansUsed(0);
+    }
+  }, [user]);
+
+  const fetchUserScans = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('resume_scans')
+        .select('id')
+        .eq('user_id', userId);
+        
+      if (error) throw error;
+      
+      setScansUsed(data?.length || 0);
+    } catch (error) {
+      console.error("Error fetching user scans:", error);
+    }
+  };
+
+  const incrementScansUsed = () => {
+    setScansUsed(prevCount => prevCount + 1);
+  };
 
   async function signUp(fullName: string, email: string, password: string) {
     try {
@@ -116,6 +149,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     session,
     user,
     loading,
+    scansUsed,
+    hasRemainingScans,
+    incrementScansUsed,
     signUp,
     signIn,
     signOut,
