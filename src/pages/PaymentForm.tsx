@@ -26,7 +26,7 @@ const PaymentForm = () => {
   const [email, setEmail] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [loading, setLoading] = useState(false);
-  const { user, submitPayment } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -58,8 +58,9 @@ const PaymentForm = () => {
     setLoading(true);
     
     try {
-      await submitPayment(email, phoneNumber);
-      toast.success('Payment information submitted successfully! Waiting for verification.');
+      // This function was removed since we're making the service free
+      // await submitPayment(email, phoneNumber);
+      toast.success('All features are now free! Redirecting to dashboard.');
       navigate('/dashboard');
     } catch (error) {
       console.error('Payment submission error:', error);
@@ -75,125 +76,69 @@ const PaymentForm = () => {
         <div className="max-w-3xl mx-auto">
           <h1 className="text-3xl font-bold mb-6 flex items-center">
             <CreditCard className="mr-2 h-7 w-7 text-primary" />
-            Complete Your Payment
+            Free Access
           </h1>
           
           <div className="grid gap-8 md:grid-cols-5">
             <div className="md:col-span-3">
               <Card>
                 <CardHeader>
-                  <CardTitle>Payment Details</CardTitle>
+                  <CardTitle>Notice</CardTitle>
                   <CardDescription>
-                    Submit your payment details below
+                    All features are now completely free!
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="text-center mb-6">
-                    <h3 className="text-xl font-semibold">Payment Details</h3>
+                    <h3 className="text-xl font-semibold">Good News!</h3>
                     <p className="text-muted-foreground mt-1">
-                      Complete your payment of <span className="font-medium">KSh 150</span> to activate your premium subscription with 15 scans
+                      We've made all premium features completely free for everyone
                     </p>
                   </div>
                   
                   <Alert className="mb-6">
                     <AlertCircle className="h-4 w-4" />
-                    <AlertTitle>Important</AlertTitle>
+                    <AlertTitle>Free Access</AlertTitle>
                     <AlertDescription>
-                      Please make your payment first, then submit your details for verification.
+                      All users now have unlimited access to premium features.
                     </AlertDescription>
                   </Alert>
                   
-                  <form onSubmit={handleSubmit} className="space-y-6">
-                    <div className="space-y-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="email">Email Address</Label>
-                        <div className="relative">
-                          <Input
-                            id="email"
-                            type="email"
-                            placeholder="Enter your email address"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            readOnly={user && user.email ? true : false}
-                            required
-                          />
-                        </div>
-                        <p className="text-sm text-muted-foreground font-medium">
-                          This email will be used to verify your payment
-                        </p>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <Label htmlFor="phoneNumber">Phone Number</Label>
-                        <Input
-                          id="phoneNumber"
-                          placeholder="e.g., 07XX XXX XXX"
-                          value={phoneNumber}
-                          onChange={(e) => setPhoneNumber(e.target.value)}
-                          required
-                        />
-                        <p className="text-sm text-muted-foreground">
-                          The phone number you used for payment
-                        </p>
-                      </div>
-                    </div>
-                    
-                    <Button 
-                      type="submit" 
-                      className="w-full" 
-                      disabled={loading || !email || !phoneNumber}
-                    >
-                      {loading ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Submitting...
-                        </>
-                      ) : (
-                        'Submit Payment Details'
-                      )}
-                    </Button>
-                  </form>
+                  <Button 
+                    onClick={() => navigate('/dashboard')}
+                    className="w-full"
+                  >
+                    Go to Dashboard
+                  </Button>
                 </CardContent>
-                <CardFooter className="text-sm text-muted-foreground border-t pt-4">
-                  Your payment will be verified by an administrator shortly.
-                </CardFooter>
               </Card>
             </div>
             
             <div className="md:col-span-2">
               <Card>
                 <CardHeader>
-                  <CardTitle>Payment Instructions</CardTitle>
+                  <CardTitle>Features Included</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <Alert>
                     <Info className="h-4 w-4" />
-                    <AlertTitle>Subscription Price</AlertTitle>
+                    <AlertTitle>Unlimited Resume Analysis</AlertTitle>
                     <AlertDescription>
-                      <span className="font-bold text-lg">KES 150</span> for a one-week subscription with 15 scans
+                      Analyze as many resumes as you want with our AI tool
                     </AlertDescription>
                   </Alert>
                   
                   <div className="space-y-4">
                     <div>
-                      <h3 className="font-medium mb-1">How to Pay:</h3>
-                      <ol className="list-decimal list-inside space-y-2 text-sm">
-                        <li>Go to M-Pesa on your phone</li>
-                        <li>Select "Lipa na M-Pesa"</li>
-                        <li>Select "Buy Goods and Services"</li>
-                        <li>Enter Till Number: <span className="font-mono font-bold">4097548</span></li>
-                        <li>Enter Amount: <span className="font-bold">KES 150</span></li>
-                        <li>Enter your M-Pesa PIN and confirm</li>
-                        <li>After payment, submit your email and phone number in this form</li>
-                      </ol>
-                    </div>
-                    
-                    <div className="pt-2">
-                      <h3 className="font-medium mb-1">After Submission:</h3>
-                      <p className="text-sm">
-                        Our admin will verify your payment and activate your premium access with 15 scans.
-                        You'll receive a notification with your subscription end date.
-                      </p>
+                      <h3 className="font-medium mb-1">What's Included:</h3>
+                      <ul className="list-disc list-inside space-y-2 text-sm">
+                        <li>Unlimited resume scans</li>
+                        <li>AI-powered feedback</li>
+                        <li>ATS compatibility checks</li>
+                        <li>Keyword optimization</li>
+                        <li>Detailed section analysis</li>
+                        <li>Downloadable reports</li>
+                      </ul>
                     </div>
                   </div>
                 </CardContent>
@@ -204,6 +149,6 @@ const PaymentForm = () => {
       </div>
     </Layout>
   );
-};
+}
 
 export default PaymentForm;

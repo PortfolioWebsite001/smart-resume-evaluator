@@ -43,7 +43,7 @@ export default function Dashboard() {
             <Award className="h-4 w-4 text-green-500" />
             <AlertTitle>Free Resume Analysis</AlertTitle>
             <AlertDescription>
-              You now have unlimited access to our resume analysis tools!
+              You have unlimited access to our premium resume analysis tools!
             </AlertDescription>
           </Alert>
           

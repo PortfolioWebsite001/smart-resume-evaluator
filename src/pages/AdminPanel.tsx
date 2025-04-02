@@ -1,450 +1,349 @@
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { supabase } from '@/integrations/supabase/client';
 import Layout from '@/components/Layout';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-  CardFooter,
-} from '@/components/ui/card';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+import { supabase } from '@/integrations/supabase/client';
+import { Button } from '@/components/ui/button';
+import { 
+  Table, 
+  TableBody, 
+  TableCaption, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
 } from '@/components/ui/table';
 import { 
-  ClipboardCheck, 
-  CheckCircle, 
-  Shield, 
-  AlertCircle,
-  Search,
-  RefreshCw,
-  CheckCircle2,
-  FileText,
-  Phone
-} from 'lucide-react';
-import { toast } from 'sonner';
+  Card, 
+  CardContent, 
+  CardDescription, 
+  CardHeader, 
+  CardTitle 
+} from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-
-interface PaymentRecord {
-  id: string;
-  email: string | null;
-  phone_number: string | null;
-  payment_date: string;
-  user_id: string;
-  verified: boolean;
-  mpesa_code: string;
-  verified_at: string | null;
-  verified_by: string | null;
-}
-
-interface User {
-  id: string;
-  email: string;
-  full_name: string;
-  subscription_status: 'active' | 'expired' | 'none';
-  scans_count: number;
-}
-
-interface ResumeScan {
-  id: string;
-  file_name: string;
-  score: number;
-  scan_date: string;
-  user_id: string;
-}
+import { 
+  CheckCircle2, 
+  XCircle, 
+  Loader2, 
+  FileText,
+  Users,
+  CreditCard
+} from 'lucide-react';
 
 const AdminPanel = () => {
-  const [userEmail, setUserEmail] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [verificationSuccess, setVerificationSuccess] = useState(false);
-  const [verificationMessage, setVerificationMessage] = useState('');
-  const [payments, setPayments] = useState<PaymentRecord[]>([]);
-  const [recentUsers, setRecentUsers] = useState<User[]>([]);
-  const [recentScans, setRecentScans] = useState<ResumeScan[]>([]);
-  const [loadingPayments, setLoadingPayments] = useState(true);
-  const [loadingUsers, setLoadingUsers] = useState(true);
-  const [loadingScans, setLoadingScans] = useState(true);
-  const { verifyPayment, user } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+  const [paymentRecords, setPaymentRecords] = useState<any[]>([]);
+  const [processingId, setProcessingId] = useState<string | null>(null);
+  const [users, setUsers] = useState<any[]>([]);
+  const [scans, setScans] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState('payments');
 
-  // Check if admin is logged in
   useEffect(() => {
-    const checkAdminAccess = async () => {
-      const { data: sessionData } = await supabase.auth.getSession();
-      
-      if (!sessionData.session) {
-        toast.error('Unauthorized access');
-        navigate('/admin');
-      }
-    };
-
-    checkAdminAccess();
-  }, [navigate]);
-
-  // Load data
-  useEffect(() => {
-    fetchPayments();
-    fetchRecentUsers();
-    fetchRecentScans();
-  }, []);
-
-  const fetchPayments = async () => {
-    setLoadingPayments(true);
-    try {
-      // Get unverified payments
-      const { data: paymentData, error: paymentError } = await supabase
-        .from('payment_records')
-        .select('*')
-        .eq('verified', false)
-        .order('payment_date', { ascending: false });
-
-      if (paymentError) throw paymentError;
-      setPayments(paymentData || []);
-    } catch (error) {
-      console.error('Error loading payments:', error);
-      toast.error('Failed to load payment records');
-    } finally {
-      setLoadingPayments(false);
-    }
-  };
-
-  const fetchRecentUsers = async () => {
-    setLoadingUsers(true);
-    try {
-      // Get profiles directly instead of using auth.admin.listUsers
-      const { data: profilesData, error: profilesError } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(10);
-
-      if (profilesError) throw profilesError;
-
-      const users: User[] = [];
-      
-      // For each profile, get subscription status and scan count
-      for (const profile of (profilesData || [])) {
-        try {
-          // Get subscription status
-          const { data: subscriptionData } = await supabase
-            .from('subscriptions')
-            .select('*')
-            .eq('user_id', profile.id)
-            .eq('active', true)
-            .single();
-
-          // Get scan count
-          const { count: scansCount } = await supabase
-            .from('resume_scans')
-            .select('*', { count: 'exact' })
-            .eq('user_id', profile.id);
-
-          users.push({
-            id: profile.id,
-            email: profile.full_name || 'No email', // Using full_name as email
-            full_name: profile.full_name || 'Unknown',
-            subscription_status: subscriptionData ? 'active' : 'none',
-            scans_count: scansCount || 0
-          });
-        } catch (error) {
-          console.error('Error fetching user details:', error);
-        }
-      }
-
-      setRecentUsers(users);
-    } catch (error) {
-      console.error('Error loading users:', error);
-      toast.error('Failed to load user records');
-    } finally {
-      setLoadingUsers(false);
-    }
-  };
-  
-  const fetchRecentScans = async () => {
-    setLoadingScans(true);
-    try {
-      const { data: scanData, error: scanError } = await supabase
-        .from('resume_scans')
-        .select('*')
-        .order('scan_date', { ascending: false })
-        .limit(10);
-        
-      if (scanError) throw scanError;
-      
-      setRecentScans(scanData || []);
-    } catch (error) {
-      console.error('Error loading scans:', error);
-      toast.error('Failed to load scan records');
-    } finally {
-      setLoadingScans(false);
-    }
-  };
-
-  const handleVerify = async () => {
-    if (!userEmail) {
-      toast.error('Please enter an email address');
+    // Verify the user is an admin
+    if (!user) {
+      navigate('/login');
       return;
     }
-    
+
+    const adminEmails = ['admin@example.com', 'admin@test.com', 'admin@gmail.com'];
+    if (!user.email || !adminEmails.includes(user.email)) {
+      toast.error('You do not have admin access');
+      navigate('/');
+      return;
+    }
+
+    loadData();
+  }, [user, navigate]);
+
+  const loadData = async () => {
     setLoading(true);
-    setVerificationSuccess(false);
-    setVerificationMessage('');
-    
     try {
-      await verifyPayment(userEmail);
-      setUserEmail('');
-      
-      // Refresh data
-      fetchPayments();
-      fetchRecentUsers();
-      
-      setVerificationSuccess(true);
-      setVerificationMessage(`Payment verified for ${userEmail}. User now has premium access with 15 scans!`);
-    } catch (error: any) {
-      console.error('Error verifying payment:', error);
-      setVerificationSuccess(false);
-      setVerificationMessage('');
+      // Note: Since all features are free now, this is just for display purposes
+      const { data: payments, error: paymentsError } = await supabase
+        .from('payment_records')
+        .select('*')
+        .order('payment_date', { ascending: false });
+
+      const { data: usersData, error: usersError } = await supabase
+        .from('profiles')
+        .select('*');
+
+      const { data: scansData, error: scansError } = await supabase
+        .from('resume_scans')
+        .select('*')
+        .order('scan_date', { ascending: false });
+
+      if (paymentsError) {
+        console.error('Error loading payments:', paymentsError);
+      } else {
+        setPaymentRecords(payments || []);
+      }
+
+      if (usersError) {
+        console.error('Error loading users:', usersError);
+      } else {
+        setUsers(usersData || []);
+      }
+
+      if (scansError) {
+        console.error('Error loading scans:', scansError);
+      } else {
+        setScans(scansData || []);
+      }
+    } catch (error) {
+      console.error('Error in admin panel:', error);
+      toast.error('Failed to load admin data');
     } finally {
       setLoading(false);
     }
   };
 
-  const refreshData = () => {
-    fetchPayments();
-    fetchRecentUsers();
-    fetchRecentScans();
-    toast.success('Data refreshed');
+  const handleVerifyPayment = async (id: string) => {
+    try {
+      setProcessingId(id);
+      
+      // Note: This is now just for display purposes since all features are free
+      const { error } = await supabase
+        .from('payment_records')
+        .update({ 
+          verified: true,
+          verified_at: new Date().toISOString(),
+          verified_by: user?.email
+        })
+        .eq('id', id);
+      
+      if (error) throw error;
+      
+      // Reload the data
+      await loadData();
+      toast.success('Payment verified successfully! User now has premium access');
+      
+    } catch (error) {
+      console.error('Error verifying payment:', error);
+      toast.error('Failed to verify payment');
+    } finally {
+      setProcessingId(null);
+    }
   };
+
+  if (loading) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
-      <div className="container mx-auto py-10 space-y-8">
-        <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold flex items-center">
-            <Shield className="mr-2 h-8 w-8 text-primary" />
-            Admin Dashboard
-          </h1>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={refreshData}>
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Refresh Data
-            </Button>
-            <Button variant="outline" onClick={() => navigate('/')}>
-              Back to Main Site
-            </Button>
-          </div>
-        </div>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <CheckCircle className="mr-2 h-5 w-5 text-green-500" />
-              Verify Payment
-            </CardTitle>
-            <CardDescription>
-              Enter user's email to verify their payment and grant subscription access
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex gap-4">
-              <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="User Email"
-                  value={userEmail}
-                  onChange={(e) => setUserEmail(e.target.value)}
-                  className="pl-9"
-                />
-              </div>
-              <Button 
-                onClick={handleVerify} 
-                disabled={loading || !userEmail}
-              >
-                {loading ? 'Verifying...' : 'Authorize User'}
-              </Button>
-            </div>
-            
-            {verificationSuccess && (
-              <Alert className="mt-4 bg-green-50 dark:bg-green-950/30">
-                <CheckCircle className="h-4 w-4 text-green-500" />
-                <AlertTitle>Success</AlertTitle>
-                <AlertDescription>
-                  {verificationMessage}
-                </AlertDescription>
-              </Alert>
-            )}
-          </CardContent>
-        </Card>
-
-        <div className="grid md:grid-cols-2 gap-6">
+      <div className="container mx-auto py-10">
+        <h1 className="text-3xl font-bold mb-6">Admin Panel</h1>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <ClipboardCheck className="mr-2 h-5 w-5" />
-                Pending Payments
-              </CardTitle>
-              <CardDescription>
-                Review and verify pending payments
-              </CardDescription>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-2xl">{users.length}</CardTitle>
+              <CardDescription>Total Users</CardDescription>
             </CardHeader>
             <CardContent>
-              {loadingPayments ? (
-                <div className="text-center py-4">Loading payments...</div>
-              ) : payments.length === 0 ? (
-                <div className="text-center py-4 flex flex-col items-center">
-                  <AlertCircle className="h-8 w-8 text-muted-foreground mb-2" />
-                  <p>No pending payments to verify</p>
-                </div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Phone</TableHead>
-                      <TableHead className="text-right">Action</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {payments.map((payment) => (
-                      <TableRow key={payment.id}>
-                        <TableCell>
-                          {new Date(payment.payment_date).toLocaleDateString()}
-                        </TableCell>
-                        <TableCell>{payment.email || 'N/A'}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center">
-                            <Phone className="h-3 w-3 mr-1 text-muted-foreground" />
-                            {payment.phone_number || 'N/A'}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button
-                            size="sm"
-                            onClick={() => {
-                              setUserEmail(payment.email || '');
-                            }}
-                          >
-                            <CheckCircle2 className="h-4 w-4 mr-1" />
-                            Verify
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
+              <div className="flex items-center">
+                <Users className="h-4 w-4 text-muted-foreground mr-1" />
+                <span className="text-sm text-muted-foreground">
+                  All registered users
+                </span>
+              </div>
             </CardContent>
           </Card>
-
+          
           <Card>
-            <CardHeader>
-              <CardTitle>Recent Users</CardTitle>
-              <CardDescription>
-                View recently registered users and their status
-              </CardDescription>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-2xl">{scans.length}</CardTitle>
+              <CardDescription>Total Scans</CardDescription>
             </CardHeader>
             <CardContent>
-              {loadingUsers ? (
-                <div className="text-center py-4">Loading users...</div>
-              ) : recentUsers.length === 0 ? (
-                <div className="text-center py-4">No users found</div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Scans</TableHead>
-                      <TableHead>Subscription</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {recentUsers.map((user) => (
-                      <TableRow key={user.id}>
-                        <TableCell>{user.email}</TableCell>
-                        <TableCell>{user.scans_count}</TableCell>
-                        <TableCell>
-                          {user.subscription_status === 'active' ? (
-                            <Badge className="bg-green-500">Active</Badge>
-                          ) : (
-                            <Badge variant="outline">None</Badge>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
+              <div className="flex items-center">
+                <FileText className="h-4 w-4 text-muted-foreground mr-1" />
+                <span className="text-sm text-muted-foreground">
+                  Resume analyses performed
+                </span>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-2xl">
+                {paymentRecords.filter(p => p.verified).length}
+              </CardTitle>
+              <CardDescription>Verified Payments</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center">
+                <CreditCard className="h-4 w-4 text-muted-foreground mr-1" />
+                <span className="text-sm text-muted-foreground">
+                  Historical payment records
+                </span>
+              </div>
             </CardContent>
           </Card>
         </div>
         
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center">
-              <FileText className="mr-2 h-5 w-5" />
-              Recent Resume Scans
-            </CardTitle>
+            <CardTitle>Admin Dashboard</CardTitle>
             <CardDescription>
-              View recently analyzed resumes
+              Manage users, payments, and scans (Note: All features are now free for all users)
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {loadingScans ? (
-              <div className="text-center py-4">Loading scans...</div>
-            ) : recentScans.length === 0 ? (
-              <div className="text-center py-4">No scans found</div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>File Name</TableHead>
-                    <TableHead>Score</TableHead>
-                    <TableHead>Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {recentScans.map((scan) => (
-                    <TableRow key={scan.id}>
-                      <TableCell>
-                        {new Date(scan.scan_date).toLocaleDateString()}
-                      </TableCell>
-                      <TableCell>{scan.file_name}</TableCell>
-                      <TableCell>
-                        <Badge className={
-                          scan.score >= 80 ? "bg-green-500" :
-                          scan.score >= 60 ? "bg-amber-500" : "bg-red-500"
-                        }>
-                          {scan.score}/100
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          onClick={() => navigate(`/analysis?id=${scan.id}`)}
-                        >
-                          View Analysis
-                        </Button>
-                      </TableCell>
+            <Tabs defaultValue={activeTab} onValueChange={setActiveTab}>
+              <TabsList className="mb-4">
+                <TabsTrigger value="payments">Payment Records</TabsTrigger>
+                <TabsTrigger value="users">Users</TabsTrigger>
+                <TabsTrigger value="scans">Resume Scans</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="payments">
+                <Table>
+                  <TableCaption>Payment records (historical data only - all features are now free)</TableCaption>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Phone Number</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Actions</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
+                  </TableHeader>
+                  <TableBody>
+                    {paymentRecords.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center">No payment records found</TableCell>
+                      </TableRow>
+                    ) : (
+                      paymentRecords.map((record) => (
+                        <TableRow key={record.id}>
+                          <TableCell>{record.email}</TableCell>
+                          <TableCell>{record.phone_number}</TableCell>
+                          <TableCell>{new Date(record.payment_date).toLocaleString()}</TableCell>
+                          <TableCell>
+                            {record.verified ? (
+                              <Badge className="bg-green-500">
+                                <CheckCircle2 className="h-3 w-3 mr-1" />
+                                Verified
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-amber-500 border-amber-500">
+                                <XCircle className="h-3 w-3 mr-1" />
+                                Pending
+                              </Badge>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {!record.verified ? (
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => handleVerifyPayment(record.id)}
+                                disabled={processingId === record.id}
+                              >
+                                {processingId === record.id ? (
+                                  <>
+                                    <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                                    Processing...
+                                  </>
+                                ) : (
+                                  'Verify Payment'
+                                )}
+                              </Button>
+                            ) : (
+                              <span className="text-sm text-muted-foreground">
+                                Verified by: {record.verified_by}
+                              </span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </TabsContent>
+              
+              <TabsContent value="users">
+                <Table>
+                  <TableCaption>All registered users</TableCaption>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>ID</TableHead>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Phone</TableHead>
+                      <TableHead>Created At</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {users.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center">No users found</TableCell>
+                      </TableRow>
+                    ) : (
+                      users.map((user) => (
+                        <TableRow key={user.id}>
+                          <TableCell className="font-mono text-xs">{user.id.substring(0, 8)}...</TableCell>
+                          <TableCell>{user.full_name}</TableCell>
+                          <TableCell>{user.phone_number || 'N/A'}</TableCell>
+                          <TableCell>{new Date(user.created_at).toLocaleString()}</TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </TabsContent>
+              
+              <TabsContent value="scans">
+                <Table>
+                  <TableCaption>Recent resume scans</TableCaption>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>File</TableHead>
+                      <TableHead>User ID</TableHead>
+                      <TableHead>Score</TableHead>
+                      <TableHead>Date</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {scans.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center">No scans found</TableCell>
+                      </TableRow>
+                    ) : (
+                      scans.map((scan) => (
+                        <TableRow key={scan.id}>
+                          <TableCell className="font-medium">{scan.file_name}</TableCell>
+                          <TableCell className="font-mono text-xs">{scan.user_id.substring(0, 8)}...</TableCell>
+                          <TableCell>
+                            <Badge variant={scan.score >= 90 ? "default" : "outline"} className={
+                              scan.score >= 90 ? "bg-green-500" : 
+                              scan.score >= 80 ? "bg-blue-500" : 
+                              scan.score >= 70 ? "bg-amber-500" : "bg-red-500"
+                            }>
+                              {scan.score}%
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{new Date(scan.scan_date).toLocaleString()}</TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </TabsContent>
+            </Tabs>
           </CardContent>
         </Card>
       </div>
