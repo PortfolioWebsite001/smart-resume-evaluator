@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import Layout from "@/components/Layout";
@@ -37,6 +38,7 @@ const Analysis = () => {
   useEffect(() => {
     const loadData = async () => {
       if (location.state) {
+        console.log("Using location state data", location.state);
         setAnalysisData(location.state);
         return;
       }
@@ -50,13 +52,22 @@ const Analysis = () => {
         
         setLoading(true);
         try {
+          console.log("Fetching scan with ID:", scanId);
           const { data, error } = await supabase
             .from('resume_scans')
             .select('*')
             .eq('id', scanId)
             .single();
             
-          if (error) throw error;
+          if (error) {
+            console.error("Supabase error:", error);
+            throw error;
+          }
+          
+          if (!data) {
+            console.error("No data returned for scan ID:", scanId);
+            throw new Error("Scan not found");
+          }
           
           if (data.user_id !== user.id) {
             toast.error("You don't have permission to view this analysis");
@@ -66,6 +77,7 @@ const Analysis = () => {
           
           let parsedResults;
           try {
+            console.log("Parsing scan results");
             parsedResults = typeof data.scan_results === 'string' 
               ? JSON.parse(data.scan_results) 
               : data.scan_results;
@@ -87,10 +99,11 @@ const Analysis = () => {
             return;
           }
           
+          console.log("Setting analysis data");
           setAnalysisData({
-            fileName: data.file_name,
-            fileSize: data.file_size,
-            uploadTime: data.scan_date,
+            fileName: data.file_name || "resume.pdf",
+            fileSize: data.file_size || 0,
+            uploadTime: data.scan_date || new Date().toISOString(),
             jobDescription: data.job_description,
             analysisResults: parsedResults as ResumeAnalysisResult,
             scanId: data.id
@@ -103,6 +116,7 @@ const Analysis = () => {
           setLoading(false);
         }
       } else if (!location.state) {
+        console.log("No scan ID or location state, navigating to home");
         navigate("/");
       }
     };

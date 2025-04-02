@@ -7,21 +7,63 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import UploadZone from '@/components/UploadZone';
-import { FileText, Award } from 'lucide-react';
+import { FileText, Award, FileCheck, Clock } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+import { formatFileSize } from '@/utils/fileUtils';
 
 export default function Dashboard() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
+  const [recentScans, setRecentScans] = useState<any[]>([]);
+  const [fetchingScans, setFetchingScans] = useState(false);
   const navigate = useNavigate();
-
+  
+  // Fetch recent scans when the component mounts
   useEffect(() => {
     if (!user) {
       navigate('/login');
       return;
     }
-    setLoading(false);
+    
+    const fetchRecentScans = async () => {
+      setFetchingScans(true);
+      try {
+        const { data, error } = await supabase
+          .from('resume_scans')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('scan_date', { ascending: false })
+          .limit(5);
+          
+        if (error) throw error;
+        
+        setRecentScans(data || []);
+      } catch (error) {
+        console.error('Error fetching recent scans:', error);
+        toast.error('Failed to load recent scans');
+      } finally {
+        setFetchingScans(false);
+        setLoading(false);
+      }
+    };
+    
+    fetchRecentScans();
   }, [user, navigate]);
+
+  const handleScanClick = (scanId: string) => {
+    navigate(`/analysis?id=${scanId}`);
+  };
+
+  const formatDate = (dateString: string) => {
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+    } catch (e) {
+      return dateString;
+    }
+  };
 
   if (loading) {
     return (
@@ -78,10 +120,41 @@ export default function Dashboard() {
               <CardDescription>View your previously analyzed resumes</CardDescription>
             </CardHeader>
             <CardContent>
-              {/* Recent scans would go here */}
-              <p className="text-center py-6 text-muted-foreground">
-                Your recently scanned resumes will appear here
-              </p>
+              {fetchingScans ? (
+                <div className="flex justify-center py-6">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                </div>
+              ) : recentScans.length > 0 ? (
+                <div className="grid gap-4">
+                  {recentScans.map((scan) => (
+                    <div 
+                      key={scan.id}
+                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
+                      onClick={() => handleScanClick(scan.id)}
+                    >
+                      <div className="flex items-center">
+                        <FileCheck className="h-6 w-6 text-primary mr-3" />
+                        <div>
+                          <p className="font-medium">{scan.file_name || 'Resume scan'}</p>
+                          <div className="flex items-center text-sm text-muted-foreground">
+                            <Clock className="h-3 w-3 mr-1" />
+                            <span>{formatDate(scan.scan_date)}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-sm">
+                        {scan.file_size && (
+                          <span className="text-muted-foreground">{formatFileSize(scan.file_size)}</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-center py-6 text-muted-foreground">
+                  Your recently scanned resumes will appear here
+                </p>
+              )}
             </CardContent>
           </Card>
         </div>

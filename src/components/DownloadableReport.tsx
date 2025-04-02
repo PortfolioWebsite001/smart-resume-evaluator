@@ -1,12 +1,12 @@
 
 import React from 'react';
 import { Button } from "@/components/ui/button";
-import { Download, FileDown } from "lucide-react";
+import { FileDown } from "lucide-react";
 import { ResumeAnalysisResult } from "@/utils/geminiAPI";
 import { formatFileSize } from "@/utils/fileUtils";
 import { jsPDF } from "jspdf";
+// Import jspdf-autotable
 import 'jspdf-autotable';
-import html2canvas from 'html2canvas';
 
 interface DownloadableReportProps {
   fileName: string;
@@ -14,6 +14,13 @@ interface DownloadableReportProps {
   uploadTime: string;
   jobDescription?: string;
   analysisResults: ResumeAnalysisResult;
+}
+
+// This adds the autoTable method to the jsPDF instance
+declare module 'jspdf' {
+  interface jsPDF {
+    autoTable: (options: any) => jsPDF;
+  }
 }
 
 const DownloadableReport = ({ 
@@ -77,7 +84,7 @@ const DownloadableReport = ({
       doc.setTextColor(59, 130, 246);
       doc.text('Resume Structure Overview', 14, 110);
       
-      // @ts-ignore - jspdf-autotable types
+      // Using autoTable
       doc.autoTable({
         startY: 115,
         head: [['Section', 'Status', 'Quality', 'Score', 'Feedback']],
