@@ -22,7 +22,7 @@ const UploadZone = ({ onFileUpload }: UploadZoneProps) => {
   const [jobDescription, setJobDescription] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
-  const { user, getRemainingFreeScans, hasActiveSubscription } = useAuth();
+  const { user } = useAuth();
 
   const handleDragOver = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -106,15 +106,6 @@ const UploadZone = ({ onFileUpload }: UploadZoneProps) => {
     if (!user) {
       toast.error("Please sign in to analyze your resume");
       navigate("/login");
-      return;
-    }
-    
-    const remainingScans = await getRemainingFreeScans();
-    const isSubscribed = await hasActiveSubscription();
-    
-    if (remainingScans <= 0 && !isSubscribed) {
-      toast.error("You've used all your free scans. Please subscribe to continue.");
-      navigate("/subscription");
       return;
     }
 

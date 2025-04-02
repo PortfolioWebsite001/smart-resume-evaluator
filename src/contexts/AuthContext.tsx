@@ -4,7 +4,6 @@ import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { calculateRemainingFreeScans, getSubscriptionEndDate } from '@/utils/authUtils';
 
 interface AuthContextType {
   session: Session | null;
@@ -13,12 +12,7 @@ interface AuthContextType {
   signUp: (fullName: string, email: string, password: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
-  getRemainingScans: () => Promise<number>;
-  getSubscriptionEndDate: () => Promise<string | null>;
-  hasActiveSubscription: () => Promise<boolean>;
   verifyAdminPin: (pin: string) => Promise<boolean>;
-  submitPayment: (email: string, phoneNumber: string) => Promise<void>;
-  verifyPayment: (userEmail: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -102,35 +96,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  async function getRemainingScans() {
-    if (!user) return 0;
-    return calculateRemainingFreeScans(user.id, supabase);
-  }
-
-  async function getSubscriptionEndDateForUser() {
-    if (!user) return null;
-    return getSubscriptionEndDate(user.id, supabase);
-  }
-
-  async function hasActiveSubscription() {
-    if (!user) return false;
-    
-    try {
-      const { data, error } = await supabase
-        .from('subscriptions')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('active', true)
-        .single();
-        
-      if (error) return false;
-      return !!data;
-    } catch (error) {
-      console.error("Error checking subscription:", error);
-      return false;
-    }
-  }
-
   async function verifyAdminPin(pin: string) {
     try {
       const { data, error } = await supabase
@@ -147,136 +112,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  async function submitPayment(email: string, phoneNumber: string) {
-    if (!user) {
-      toast.error('You must be logged in to submit a payment');
-      return;
-    }
-    
-    try {
-      // Store the payment record
-      const { error: paymentError } = await supabase
-        .from('payment_records')
-        .insert({
-          user_id: user.id,
-          mpesa_code: 'MANUAL_VERIFICATION',
-          email: email,
-          phone_number: phoneNumber
-        });
-        
-      if (paymentError) throw paymentError;
-      
-      toast.success('Payment information submitted successfully! Waiting for verification.');
-    } catch (error: any) {
-      console.error('Error submitting payment:', error);
-      toast.error(error.message || 'Failed to submit payment');
-      throw error;
-    }
-  }
-
-  async function verifyPayment(userEmail: string) {
-    try {
-      // Try to find user by payment record first
-      const { data: paymentData, error: paymentError } = await supabase
-        .from('payment_records')
-        .select('user_id, email')
-        .eq('email', userEmail)
-        .eq('verified', false)
-        .maybeSingle();
-      
-      let userId = null;
-      
-      if (paymentData && paymentData.user_id) {
-        userId = paymentData.user_id;
-      } else {
-        // If no payment record, try to find user by auth email
-        const { data: usersData, error: userError } = await supabase
-          .from('profiles')
-          .select('id')
-          .eq('email', userEmail)
-          .maybeSingle();
-          
-        if (!usersData || userError) {
-          toast.error('No user found with this email address');
-          throw new Error('User not found with this email');
-        }
-        
-        userId = usersData.id;
-      }
-      
-      if (!userId) {
-        toast.error('Could not find a user associated with this email');
-        throw new Error('User ID not found');
-      }
-      
-      // Get current admin user
-      const currentUser = await supabase.auth.getUser();
-      const adminEmail = currentUser.data.user?.email || 'Unknown Admin';
-      
-      // Mark payment as verified
-      await supabase
-        .from('payment_records')
-        .update({
-          verified: true,
-          verified_by: adminEmail,
-          verified_at: new Date().toISOString()
-        })
-        .eq('user_id', userId)
-        .eq('verified', false);
-      
-      // Calculate end date (7 days from now)
-      const oneWeekFromNow = new Date();
-      oneWeekFromNow.setDate(oneWeekFromNow.getDate() + 7);
-      
-      // Check if a subscription already exists for this user
-      const { data: existingSubscription } = await supabase
-        .from('subscriptions')
-        .select('*')
-        .eq('user_id', userId)
-        .eq('active', true)
-        .maybeSingle();
-
-      if (existingSubscription) {
-        // Update existing subscription
-        await supabase
-          .from('subscriptions')
-          .update({
-            end_date: oneWeekFromNow.toISOString(),
-            active: true
-          })
-          .eq('id', existingSubscription.id);
-      } else {
-        // Create new subscription
-        await supabase
-          .from('subscriptions')
-          .insert({
-            user_id: userId,
-            start_date: new Date().toISOString(),
-            end_date: oneWeekFromNow.toISOString(),
-            active: true
-          });
-      }
-      
-      // Log the admin action
-      await supabase
-        .from('admin_logs')
-        .insert({
-          action: 'payment_verification',
-          admin_email: adminEmail,
-          target_user_email: userEmail,
-          details: {
-            verified_at: new Date().toISOString()
-          }
-        });
-      
-      toast.success('Payment verified and subscription activated successfully! The user now has access to 15 scans.');
-    } catch (error: any) {
-      console.error('Error verifying payment:', error);
-      toast.error('An error occurred while verifying payment: ' + error.message);
-      throw error;
-    }
-  }
-
   const value = {
     session,
     user,
@@ -284,12 +119,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signUp,
     signIn,
     signOut,
-    getRemainingScans,
-    getSubscriptionEndDate: getSubscriptionEndDateForUser,
-    hasActiveSubscription,
     verifyAdminPin,
-    submitPayment,
-    verifyPayment,
   };
 
   return (
