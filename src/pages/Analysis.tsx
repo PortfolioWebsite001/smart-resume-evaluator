@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import Layout from "@/components/Layout";
@@ -40,6 +39,12 @@ const Analysis = () => {
     const loadData = async () => {
       if (location.state && location.state.analysisResults) {
         console.log("Using location state data", location.state);
+        
+        // Ensure the score is between 96-99%
+        if (location.state.analysisResults.score < 96 || location.state.analysisResults.score > 99) {
+          location.state.analysisResults.score = Math.min(Math.max(96, location.state.analysisResults.score), 99);
+        }
+        
         setAnalysisData(location.state);
         return;
       }
@@ -94,10 +99,10 @@ const Analysis = () => {
               console.log("Username was missing, set to 'User'");
             }
             
-            // Ensure score is in 90-95 range
-            if (parsedResults.score < 90 || parsedResults.score > 95) {
-              parsedResults.score = Math.min(Math.max(90, parsedResults.score), 95);
-              console.log("Adjusted score to be in range 90-95:", parsedResults.score);
+            // Ensure score is in 96-99 range
+            if (parsedResults.score < 96 || parsedResults.score > 99) {
+              parsedResults.score = Math.min(Math.max(96, parsedResults.score), 99);
+              console.log("Adjusted score to be in range 96-99:", parsedResults.score);
             }
             
             // Ensure all other required properties exist
@@ -207,12 +212,12 @@ const Analysis = () => {
     );
   }
 
-  // Ensure score is in 90-95 range
-  if (analysisData.analysisResults.score < 90 || analysisData.analysisResults.score > 95) {
-    analysisData.analysisResults.score = Math.min(Math.max(90, analysisData.analysisResults.score), 95);
+  // Ensure score is in 96-99 range
+  if (analysisData.analysisResults.score < 96 || analysisData.analysisResults.score > 99) {
+    analysisData.analysisResults.score = Math.min(Math.max(96, analysisData.analysisResults.score), 99);
   }
 
-  const { userName = 'User', resumeText = '', score = 92 } = analysisData.analysisResults;
+  const { userName = 'User', resumeText = '', score = 97 } = analysisData.analysisResults;
 
   return (
     <Layout>

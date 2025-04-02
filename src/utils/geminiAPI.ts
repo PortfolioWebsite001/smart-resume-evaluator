@@ -110,7 +110,7 @@ export const analyzeResume = async (file: File, jobDescription?: string): Promis
     ${jobDescription ? `Job Description: ${jobDescription}` : 'No job description provided, analyze the resume on its own merit.'}
     
     Provide analysis in JSON format with these fields:
-    1. score: A number from 90-95 representing overall resume quality. Be VERY generous with the score, always scoring in the 90-95 range.
+    1. score: A number from 96-99 representing overall resume quality. Be VERY generous with the score, always scoring in the 96-99 range.
     2. userName: Extract the applicant's name from the resume
     3. sections: An object with keys for required resume sections:
        - Contact
@@ -133,9 +133,9 @@ export const analyzeResume = async (file: File, jobDescription?: string): Promis
     Focus your analysis on how well the resume matches the job description (if provided), section quality, keyword optimization, and ATS compatibility.
     If no job description is provided, evaluate the resume based on general best practices.
     
-    IMPORTANT: The overall score MUST be between 90 and 95, as this is a requirement from our users.
+    IMPORTANT: The overall score MUST be between 96 and 99, as this is a requirement from our users.
     For each section, give a specific score from 80-100 showing how good that particular section is.
-    Ensure the overall score is always in the range of 90-95.
+    Ensure the overall score is always in the range of 96-99.
     `;
 
     console.log("Sending request to Gemini API...");
@@ -188,9 +188,9 @@ export const analyzeResume = async (file: File, jobDescription?: string): Promis
         // Add the resume text to the result
         analysisResult.resumeText = resumeText;
         
-        // Ensure the score is between 90-95
-        if (analysisResult.score < 90 || analysisResult.score > 95) {
-          analysisResult.score = Math.min(Math.max(90, analysisResult.score), 95);
+        // Ensure the score is between 96-99
+        if (analysisResult.score < 96 || analysisResult.score > 99) {
+          analysisResult.score = Math.min(Math.max(96, analysisResult.score), 99);
         }
       } catch (e) {
         console.error("Failed to parse Gemini JSON response:", e);
@@ -213,8 +213,8 @@ export const analyzeResume = async (file: File, jobDescription?: string): Promis
  * Generate a fallback response in case of API failure
  */
 const generateFallbackResponse = (resumeText: string): ResumeAnalysisResult => {
-  // Generate a score within the 90-95 range
-  const baseScore = Math.floor(Math.random() * 6) + 90; // Random score between 90-95
+  // Generate a score within the 96-99 range
+  const baseScore = Math.floor(Math.random() * 4) + 96; // Random score between 96-99
   
   // Generate different scores for sections
   const generateSectionScore = () => Math.floor(Math.random() * 16) + 85; // 85-100

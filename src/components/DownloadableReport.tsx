@@ -1,12 +1,11 @@
 
-import React from 'react';
+import React, { useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { FileDown } from "lucide-react";
-import { ResumeAnalysisResult } from "@/utils/geminiAPI";
 import { formatFileSize } from "@/utils/fileUtils";
 import { jsPDF } from "jspdf";
-// Import jspdf-autotable
 import 'jspdf-autotable';
+import { ResumeAnalysisResult } from '@/utils/geminiAPI';
 
 interface DownloadableReportProps {
   fileName: string;
@@ -16,13 +15,6 @@ interface DownloadableReportProps {
   analysisResults: ResumeAnalysisResult;
 }
 
-// This adds the autoTable method to the jsPDF instance
-declare module 'jspdf' {
-  interface jsPDF {
-    autoTable: (options: any) => jsPDF;
-  }
-}
-
 const DownloadableReport = ({ 
   fileName, 
   fileSize, 
@@ -30,25 +22,12 @@ const DownloadableReport = ({
   jobDescription, 
   analysisResults 
 }: DownloadableReportProps) => {
-  const reportContent = React.useRef<HTMLDivElement>(null);
+  const reportContent = useRef(null);
 
   const generatePDF = async () => {
     if (!reportContent.current) return;
     
     try {
-      // Ensure we have valid analysis results with defaults
-      const userName = analysisResults.userName || 'User';
-      const score = analysisResults.score || 90;
-      const resumeText = analysisResults.resumeText || '';
-      
-      // Provide default empty values for potentially missing sections
-      const sections = analysisResults.sections || {};
-      const keywords = analysisResults.keywords || { matching: [], missing: [] };
-      const formatting = analysisResults.formatting || { atsCompatible: true, issues: [] };
-      const aiSuggestions = analysisResults.aiSuggestions || [];
-      const actionItems = analysisResults.actionItems || [];
-      const overallSummary = analysisResults.overallSummary || 'Analysis complete';
-      
       const doc = new jsPDF('p', 'mm', 'a4');
       
       // Set basic properties
@@ -67,7 +46,7 @@ const DownloadableReport = ({
       
       doc.setFontSize(12);
       doc.setTextColor(40);
-      doc.text(`Name: ${userName}`, 14, 42);
+      doc.text(`Name: ${analysisResults.userName}`, 14, 42);
       doc.text(`File: ${fileName} (${formatFileSize(fileSize)})`, 14, 49);
       if (jobDescription) {
         doc.text(`Job Description: Included in analysis`, 14, 56);
@@ -80,16 +59,15 @@ const DownloadableReport = ({
       
       doc.setFontSize(40);
       doc.setTextColor(59, 130, 246);
-      doc.text(`${score}`, 105, 85, { align: 'center' });
+      doc.text(`${analysisResults.score}`, 105, 85, { align: 'center' });
       
       doc.setFontSize(12);
       doc.setTextColor(40);
-      const scoreMessage = score >= 80
-        ? "Excellent! Your resume is well-optimized for ATS."
-        : score >= 60
-        ? "Good, but there's room for improvement."
-        : "Your resume needs significant improvements for ATS.";
-      
+      const scoreMessage = analysisResults.score >= 80 
+        ? "Excellent! Your resume is well-optimized for ATS." 
+        : analysisResults.score >= 60 
+          ? "Good, but there's room for improvement." 
+          : "Your resume needs significant improvements for ATS.";
       doc.text(scoreMessage, 105, 95, { align: 'center' });
       
       // Resume Structure Table
@@ -97,29 +75,24 @@ const DownloadableReport = ({
       doc.setTextColor(59, 130, 246);
       doc.text('Resume Structure Overview', 14, 110);
       
-      // Define section props if they're missing
-      const sectionEntries = Object.entries(sections).map(([section, props]) => {
-        // Ensure each section has all required properties
-        const sectionProps = {
-          present: props.present !== undefined ? props.present : true,
-          quality: props.quality || 'good',
-          feedback: props.feedback || 'No specific feedback',
-          score: props.score || 85
-        };
-        return [section, sectionProps];
-      });
-      
-      // Using autoTable
+      // @ts-ignore - jspdf-autotable types
       doc.autoTable({
         startY: 115,
         head: [['Section', 'Status', 'Quality', 'Score', 'Feedback']],
-        body: sectionEntries.map(([section, { present, quality, feedback, score }]) => [
-          section,
-          present ? 'Present' : 'Missing',
-          quality.charAt(0).toUpperCase() + quality.slice(1),
-          `${score}/100`,
-          feedback
-        ]),
+        body: Object.entries(analysisResults.sections).map(([section, data]) => {
+          // Ensure we're working with the correct structure
+          const sectionData = typeof data === 'string' 
+            ? { present: false, quality: 'missing', feedback: data, score: 0 } 
+            : data;
+            
+          return [
+            section,
+            sectionData.present ? 'Present' : 'Missing',
+            sectionData.quality.charAt(0).toUpperCase() + sectionData.quality.slice(1),
+            `${sectionData.score}/100`,
+            sectionData.feedback
+          ];
+        }),
         headStyles: { fillColor: [59, 130, 246] },
         columnStyles: {
           0: { cellWidth: 40 },
@@ -127,7 +100,7 @@ const DownloadableReport = ({
           2: { cellWidth: 25 },
           3: { cellWidth: 20 },
           4: { cellWidth: 85 }
-        },
+        }
       });
       
       // Add a new page for remaining content
@@ -143,7 +116,7 @@ const DownloadableReport = ({
       
       doc.setFontSize(12);
       doc.setTextColor(40);
-      const matchingKeywords = keywords.matching.join(', ') || 'None';
+      const matchingKeywords = analysisResults.keywords.matching.join(', ');
       const splitMatchingKeywords = doc.splitTextToSize(matchingKeywords, 180);
       doc.text(splitMatchingKeywords, 14, 32);
       
@@ -153,7 +126,7 @@ const DownloadableReport = ({
       
       doc.setFontSize(12);
       doc.setTextColor(40);
-      const missingKeywords = keywords.missing.join(', ') || 'None';
+      const missingKeywords = analysisResults.keywords.missing.join(', ');
       doc.text(doc.splitTextToSize(missingKeywords, 180), 14, 52 + splitMatchingKeywords.length * 5);
       
       // ATS Compatibility
@@ -164,7 +137,7 @@ const DownloadableReport = ({
       
       doc.setFontSize(12);
       doc.setTextColor(40);
-      doc.text(`ATS Compatible: ${formatting.atsCompatible ? "Yes" : "No"}`, 14, yPosition + 10);
+      doc.text(`ATS Compatible: ${analysisResults.formatting.atsCompatible ? "Yes" : "No"}`, 14, yPosition + 10);
       
       doc.setFontSize(14);
       doc.setTextColor(59, 130, 246);
@@ -173,7 +146,7 @@ const DownloadableReport = ({
       doc.setFontSize(12);
       doc.setTextColor(40);
       let currentY = yPosition + 30;
-      formatting.issues.forEach(issue => {
+      analysisResults.formatting.issues.forEach((issue) => {
         doc.text(`• ${issue}`, 14, currentY);
         currentY += 7;
       });
@@ -186,7 +159,7 @@ const DownloadableReport = ({
       doc.setFontSize(12);
       doc.setTextColor(40);
       currentY += 20;
-      aiSuggestions.forEach(suggestion => {
+      analysisResults.aiSuggestions.forEach((suggestion) => {
         doc.text(`• ${suggestion}`, 14, currentY);
         currentY += 7;
       });
@@ -199,7 +172,7 @@ const DownloadableReport = ({
       doc.setFontSize(12);
       doc.setTextColor(40);
       currentY += 20;
-      actionItems.forEach(item => {
+      analysisResults.actionItems.forEach((item) => {
         if (currentY > 270) {
           doc.addPage();
           currentY = 20;
@@ -208,7 +181,7 @@ const DownloadableReport = ({
         currentY += 7;
       });
       
-      // Resume Text (Add full text even if hidden in UI)
+      // Overall Summary
       if (currentY > 230) {
         doc.addPage();
         currentY = 20;
@@ -216,30 +189,11 @@ const DownloadableReport = ({
       
       doc.setFontSize(16);
       doc.setTextColor(59, 130, 246);
-      doc.text('Full Resume Text', 14, currentY + 10);
-      
-      doc.setFontSize(10);
-      doc.setTextColor(40);
-      const resumeTextLines = doc.splitTextToSize(resumeText, 180);
-      currentY += 20;
-      doc.text(resumeTextLines, 14, currentY);
-      
-      // Ensure we move to a new page for the overall summary
-      if (currentY + resumeTextLines.length * 3.5 > 270) {
-        doc.addPage();
-        currentY = 20;
-      } else {
-        currentY += resumeTextLines.length * 3.5 + 10;
-      }
-      
-      // Overall Summary
-      doc.setFontSize(16);
-      doc.setTextColor(59, 130, 246);
       doc.text('Overall Summary', 14, currentY + 10);
       
       doc.setFontSize(12);
       doc.setTextColor(40);
-      const summaryText = doc.splitTextToSize(overallSummary, 180);
+      const summaryText = doc.splitTextToSize(analysisResults.overallSummary, 180);
       doc.text(summaryText, 14, currentY + 20);
       
       // Footer
@@ -253,10 +207,8 @@ const DownloadableReport = ({
         doc.text(`Page ${i} of ${pageCount}`, 195, 287, { align: 'right' });
       }
       
-      // Save the PDF with a clean filename
-      const cleanName = userName.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
-      doc.save(`Resume_Analysis_${cleanName || 'User'}.pdf`);
-      
+      // Save the PDF
+      doc.save(`Resume_Analysis_${analysisResults.userName.replace(/\s+/g, '_')}.pdf`);
     } catch (error) {
       console.error('Error generating PDF:', error);
     }
@@ -265,15 +217,16 @@ const DownloadableReport = ({
   return (
     <div className="space-y-4">
       <div className="flex space-x-2 justify-center">
-        <Button variant="outline" onClick={generatePDF} className="flex items-center">
+        <Button
+          variant="outline"
+          onClick={generatePDF}
+          className="flex items-center"
+        >
           <FileDown className="mr-2 h-4 w-4" />
           Download PDF Report
         </Button>
       </div>
-      
-      <div ref={reportContent} className="hidden">
-        {/* Hidden report content for PDF generation */}
-      </div>
+      <div ref={reportContent} className="hidden"></div>
     </div>
   );
 };
